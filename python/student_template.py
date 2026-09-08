@@ -1,64 +1,45 @@
 """
-TEMPLATE PARA O ALUNO — TRABALHO PRÁTICO 1 (TP1)
-Disciplina: Análise e Projetos de Algoritmos (APA)
+TRABALHO PRATICO 1 (TP1)
+Disciplina: Analise e Projetos de Algoritmos (APA)
+Aluno: Bruno da Silva Rocha
 
-Instruções:
-1. Implemente seu método de ordenação autoral na função `my_authorial_sort`.
-2. O retorno deve ser obrigatoriamente a tupla: (lista_ordenada, total_comparacoes, total_movimentacoes).
-3. Execute este arquivo diretamente para rodar a suíte de testes de corretude e o benchmark rápido.
+Algoritmo autoral: OSJ - Ordenacao por Sondagem e Janelas.
+A implementacao, a documentacao do raciocinio projetual e a prova de termino
+estao em osj.py. Este arquivo cumpre a interface exigida pelo enunciado.
+
+Resumo do metodo:
+  Fase 1 (Sondagem)  - cada elemento estima seu posto final consultando s
+                       testemunhas sorteadas e salta para a posicao estimada.
+                       Fase heuristica: pode errar sem comprometer a corretude.
+  Fase 2 (Sanfona)   - janela de largura w varre o vetor com passo w/2,
+                       ordenando por insercao cada trecho, ate uma passada
+                       sem movimentacao. Esta fase sozinha ordena qualquer
+                       entrada: e nela que mora toda a corretude.
+
+Execute test_osj.py para a suite completa (42 testes).
 """
 
 from typing import Any, List, Tuple
 import unittest
 
+from osj import my_authorial_sort as _osj
+
 
 def my_authorial_sort(arr: List[Any]) -> Tuple[List[Any], int, int]:
+    """OSJ - Ordenacao por Sondagem e Janelas.
+
+    Retorno: (lista_ordenada, total_comparacoes, total_movimentacoes)
     """
-    IMPLEMENTE AQUI SEU ALGORITMO AUTORAL.
-
-    Parâmetros:
-        arr (List[Any]): Lista de entrada a ser ordenada.
-
-    Retorno:
-        Tuple[List[Any], int, int]:
-            - Lista ordenada
-            - Total de comparações realizadas
-            - Total de movimentações/trocas realizadas
-    """
-    a = list(arr)
-    n = len(a)
-    comps = 0
-    moves = 0
-
-    # =========================================================================
-    # TODO: Escreva sua lógica autoral aqui.
-    # Exemplo temporário (substitua pelo seu algoritmo):
-    for i in range(1, n):
-        key = a[i]
-        moves += 1
-        j = i - 1
-        while j >= 0:
-            comps += 1
-            if a[j] > key:
-                a[j + 1] = a[j]
-                moves += 1
-                j -= 1
-            else:
-                break
-        a[j + 1] = key
-        moves += 1
-    # =========================================================================
-
-    return a, comps, moves
+    return _osj(arr)
 
 
 # =============================================================================
-# SUÍTE DE TESTES AUTOMÁTICA DE VALIDAÇÃO
+# SUITE DE TESTES AUTOMATICA DE VALIDACAO
 # =============================================================================
 class TestStudentAuthorialSort(unittest.TestCase):
     def assert_sorted(self, original: List, result: List):
         self.assertEqual(len(result), len(original), "Tamanho divergente!")
-        self.assertEqual(sorted(original), result, "A lista não foi ordenada corretamente!")
+        self.assertEqual(sorted(original), result, "A lista nao foi ordenada corretamente!")
 
     def test_empty(self):
         res, _, _ = my_authorial_sort([])
@@ -92,5 +73,5 @@ class TestStudentAuthorialSort(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    print("🧪 Executando testes unitários no seu algoritmo autoral...")
+    print("Executando testes unitarios no algoritmo autoral OSJ...")
     unittest.main(verbosity=2)
