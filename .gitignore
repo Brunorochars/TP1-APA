@@ -1,0 +1,65 @@
+# =============================================================
+# TP1-APA — arquivos que nao devem ser versionados
+# =============================================================
+
+# ---- Python: bytecode e caches ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ---- Ferramentas de teste e analise estatica ----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# ---- Empacotamento ----
+build/
+dist/
+*.egg-info/
+
+# ---- Ambientes virtuais ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+
+# ---- Editores e IDEs ----
+.vscode/
+.idea/
+*.code-workspace
+*.sublime-*
+*.swp
+*.swo
+*~
+
+# ---- Windows / OneDrive ----
+desktop.ini
+Desktop.ini
+Thumbs.db
+ehthumbs.db
+$RECYCLE.BIN/
+*.tmp
+*.lnk
+
+# ---- Arquivos de bloqueio do Office (relatorio em .docx/.xlsx) ----
+~$*
+
+# ---- macOS / Linux (caso o repo circule) ----
+.DS_Store
+*.bak
+*.orig
+
+# =============================================================
+# NOTA: a pasta resultados/ NAO e ignorada de proposito.
+# Os graficos e tabelas gerados pelo benchmark sao evidencia
+# experimental citada no relatorio e fazem parte da entrega.
+# Para regera-los:  cd python && python benchmark_osj.py
+# =============================================================
