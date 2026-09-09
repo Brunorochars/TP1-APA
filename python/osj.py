@@ -142,12 +142,15 @@ def _insertion_window(a: List[Any], lo: int, hi: int, st: Stats) -> bool:
     return moved
 
 
-def _phase2(a: List[Any], w: int, st: Stats) -> None:
-    """Varreduras de janela deslizante ate o ponto fixo."""
-    n = len(a)
-    if n < 2:
-        return
+def _sweep(a: List[Any], w: int, st: Stats) -> bool:
+    """Executa UMA varredura: percorre os inicios de janela em ordem
+    crescente, ordenando cada trecho por insercao. Devolve True se houve
+    troca de vizinhos.
 
+    A ordem crescente dos inicios nao e detalhe de implementacao: junto com
+    a sobreposicao, e premissa do lema do avanco (Secao 4.2 do relatorio).
+    """
+    n = len(a)
     w = max(2, min(w, n))
     step = max(1, w // 2)
 
@@ -155,11 +158,20 @@ def _phase2(a: List[Any], w: int, st: Stats) -> None:
     if starts[-1] != n - w:
         starts.append(n - w)          # janela encostada na borda direita
 
+    moved = False
+    for p in starts:
+        if _insertion_window(a, p, p + w, st):
+            moved = True
+    return moved
+
+
+def _phase2(a: List[Any], w: int, st: Stats) -> None:
+    """Varreduras de janela deslizante ate o ponto fixo."""
+    if len(a) < 2:
+        return
+
     while True:
-        moved = False
-        for p in starts:
-            if _insertion_window(a, p, p + w, st):
-                moved = True
+        moved = _sweep(a, w, st)
         st.passes += 1
         if not moved:
             break
