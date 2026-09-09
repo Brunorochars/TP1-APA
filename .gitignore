@@ -2,6 +2,11 @@
 # TP1-APA — arquivos que nao devem ser versionados
 # =============================================================
 
+docs/
+.claude
+claude.md
+CONTEXT.md
+
 # ---- Python: bytecode e caches ----
 __pycache__/
 *.py[cod]
