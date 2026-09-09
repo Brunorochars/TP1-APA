@@ -348,3 +348,20 @@ def max_displacement(a: List[Any]) -> int:
     for rank, i in enumerate(order):
         final[i] = rank
     return max(abs(i - final[i]) for i in range(n))
+
+
+def max_left_displacement(a: List[Any]) -> int:
+    """Dis_esq(A): maior deslocamento a ESQUERDA, isto e, o maior valor de
+    (posicao atual - posto correto) entre os elementos que estao a direita do
+    proprio posto. Zero significa vetor ordenado.
+
+    E a grandeza do lema do avanco (Secao 4.2): o lema vale para a esquerda,
+    nao para a direita. Existe apenas na analise, como inversions()."""
+    n = len(a)
+    if n == 0:
+        return 0
+    order = sorted(range(n), key=lambda i: (a[i], i))
+    final = [0] * n
+    for rank, i in enumerate(order):
+        final[i] = rank
+    return max(max(i - final[i] for i in range(n)), 0)

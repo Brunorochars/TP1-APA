@@ -27,6 +27,7 @@ from osj import (
     Stats,
     inversions,
     max_displacement,
+    max_left_displacement,
     my_authorial_sort,
     my_authorial_sort_stable,
     osj_sort,
@@ -266,6 +267,53 @@ class TestTheory(unittest.TestCase):
         self.assertLess(depois, antes / 4.0,
                         "a sondagem deveria reduzir substancialmente o "
                         "deslocamento: antes={0}, depois={1}".format(antes, depois))
+
+    def test_each_sweep_advances_half_a_window(self):
+        """Lema do avanco (Secao 4.2 do relatorio).
+
+        Enquanto o deslocamento a esquerda exceder w/2, cada varredura o
+        reduz em pelo menos w/2; a varredura que encerra a Fase 2 fecha em
+        zero. Dirige uma varredura por vez pela funcao privada _sweep, porque
+        o laco ate o ponto fixo tornaria o estado intermediario inobservavel.
+        Mais de uma largura de janela, para nao verificar coincidencia de w.
+        """
+        from osj import _phase1_independent, _sweep
+
+        random.seed(29)
+        n = 240
+        sabotada = _phase1_independent(
+            [random.randint(0, 999) for _ in range(n)], 1, random, Stats())
+        casos = {
+            "reverso": list(range(n, 0, -1)),
+            "sondagem sabotada com s=1": sabotada,
+        }
+
+        for nome, data in casos.items():
+            for w in (4, 9, 16, 40):
+                passo = w // 2
+                a = list(data)
+                st = Stats()
+                antes = max_left_displacement(a)
+                while True:
+                    movimentou = _sweep(a, w, st)
+                    depois = max_left_displacement(a)
+                    if antes > passo:
+                        self.assertLessEqual(
+                            depois, antes - passo,
+                            "lema do avanco (Sec. 4.2) violado: uma varredura "
+                            "deveria reduzir o deslocamento a esquerda em pelo "
+                            "menos w/2={0}, mas foi de {1} para {2} em '{3}' "
+                            "com w={4}".format(passo, antes, depois, nome, w))
+                    antes = depois
+                    if not movimentou:
+                        break
+                self.assertEqual(
+                    antes, 0,
+                    "a varredura sem troca de vizinhos deveria fechar o "
+                    "deslocamento a esquerda em zero (Sec. 3.2); sobrou {0} "
+                    "em '{1}' com w={2}".format(antes, nome, w))
+                self.assertEqual(a, sorted(data),
+                                 "'{0}' com w={1}".format(nome, w))
 
 
 if __name__ == "__main__":
