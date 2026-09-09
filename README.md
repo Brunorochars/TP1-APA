@@ -336,13 +336,44 @@ $$T(n) \;=\; \Theta\!\left(n \cdot n^{2/3}\right) \;=\; \boxed{\Theta\!\left(n^{
 
 *(A versão com garantia de alta probabilidade carrega um fator `(log n)^{1/3}` adicional, oriundo do `√log n` do limite de Hoeffding.)*
 
+#### Pior caso
+
+O pior caso é o evento em que a Sondagem degenera: as estimativas erram tanto que o vetor entregue à Fase 2, `A₀`, pode estar arbitrariamente desordenado. Nada na análise probabilística da §4.1 o proíbe — ela é uma garantia *com alta probabilidade*, e o pior caso mora exatamente no complemento. Portanto a única hipótese usada aqui é a pior possível: `A₀` é um vetor qualquer de `n` elementos.
+
+Mantidos os parâmetros do ótimo (`s = w = Θ(n^{2/3})`), decompõem-se as comparações como a §4.2 já as decompõe:
+
+$$C_{\text{Fase 2}} \;=\; \underbrace{\Theta(n) \cdot P}_{\text{varredura das janelas}} \;+\; \underbrace{\mathrm{Inv}(A_0)}_{\text{trocas de vizinhos}}$$
+
+— `Θ(n)` por varredura porque cada uma percorre `2n/w` janelas de `Θ(w)` comparações de varredura, e uma comparação a mais por troca de vizinhos, cujo total em toda a execução é **exatamente** `Inv(A₀)` pelo corolário da §3.1.
+
+Falta `P`, e é aí que a derivação **consome o lema do avanço** da §4.2. O lema dá
+
+$$P \;\le\; \left\lceil \frac{\mathrm{Dis}_{\text{esq}}(A_0)}{\lfloor w/2 \rfloor} \right\rceil + 1 \;=\; O\!\left(\frac{\mathrm{Dis}_{\text{esq}}(A_0)}{w} + 1\right)$$
+
+Note que a grandeza é o **deslocamento à esquerda**, não o máximo dos dois lados: é a versão que a §4.2 de fato prova, e a única que vale (o enunciado simétrico é falso). No pior caso não há estimativa probabilística a invocar, mas `Dis_esq(A₀) ≤ n − 1` vale sempre — nenhum elemento pode estar mais de `n − 1` posições à direita do próprio posto. Com `w = Θ(n^{2/3})`:
+
+$$P \;=\; O\!\left(\frac{n}{n^{2/3}}\right) \;=\; O\!\left(n^{1/3}\right)$$
+
+Substituindo, e somando o custo fixo `Θ(n s) = Θ(n^{5/3})` da Fase 1:
+
+$$T(n) \;=\; \underbrace{\Theta\!\left(n^{5/3}\right)}_{\text{Fase 1}} \;+\; \underbrace{\Theta(n) \cdot O\!\left(n^{1/3}\right)}_{= \;O(n^{4/3})} \;+\; \underbrace{\mathrm{Inv}(A_0)}_{\le \; n(n-1)/2} \;=\; O\!\left(n^{2}\right)$$
+
+Duas leituras que a derivação torna visíveis:
+
+- **O termo dominante vem das trocas de vizinhos, não das varreduras.** O custo de varredura é `O(n^{4/3})` — assintoticamente *menor* até que a Fase 1. Quem carrega o `n²` é `Inv(A₀)`, e ele é pago uma troca de vizinhos de cada vez, exatamente como no Insertion Sort (§5.2).
+- **Sem o lema, o limite derivável seria `O(n³)`.** O único limite de varreduras provado antes dele é o do término (§3.1): `P ≤ n(n−1)/2`, obtido de "cada varredura que não encerra desfaz ao menos uma inversão". Ele é verdadeiro e inútil aqui — combinado com `Θ(n)` por varredura daria `O(n³)`, colocando o OSJ **abaixo do Bubble Sort** (`Θ(n²)`) na tabela da §5.1. O lema do avanço é o que separa um limite honesto de um limite constrangedor: ele troca "ao menos uma inversão por varredura" por "ao menos `⌊w/2⌋` posições de deslocamento por varredura", que é `Θ(n^{2/3})` vezes mais forte.
+
+O limite `O(n²)` é uma cota superior, não `Θ`: atingi-la exige `Inv(A₀) = Θ(n²)`, isto é, uma Sondagem que devolva um vetor quase reverso — evento de probabilidade desprezível para `s = Θ(n^{2/3})`, mas não impossível, e é o que a Fase 2 tem de suportar.
+
+O limite `P = O(n/w)` que sustenta a derivação é medido em `test_osj.py::TestTheory::test_passes_are_bounded_by_the_advance_lemma`, que sabota a Sondagem com `s = 1` — desordem quase máxima sem depender de sorte — e afirma `P ≤ 4n/w + 2` para `n ∈ {200, 400, 800, 1600, 3000}`. A constante `4` é o dobro da que o lema prova (`P ≤ 2n/w + 2`, de `Dis_esq < n`); o observado fica entre `1,4` e `1,95` vezes `n/w`.
+
 ### 4.4 Quadro-resumo
 
 | Propriedade | OSJ | Observação |
 | :--- | :--- | :--- |
 | **Melhor caso** | `Ω(n^{5/3})` | a Fase 1 **não** é adaptativa: paga `n·s` mesmo com o vetor já ordenado |
 | **Caso médio** | `Θ(n^{5/3})` | com `s = w = Θ(n^{2/3})`; confirmado empiricamente (expoente 1,59) |
-| **Pior caso** | `O(n²)` | sondagem degenerada; limitado pelo corolário `Inv ≤ n(n−1)/2` |
+| **Pior caso** | `O(n²)` | sondagem degenerada; derivado na §4.3 de duas peças: `P = O(n/w)` pelo lema do avanço (§4.2) e `Inv ≤ n(n−1)/2` pelo potencial (§3.1) |
 | **Movimentações** | exatamente `Inv(A₀)` | fórmula fechada, não apenas cota |
 | **Espaço auxiliar** | `Θ(n)` | baldes e vetor de saída da Fase 1 |
 | **In-place** | não | a Fase 2 isolada **é** in-place, com `O(1)` extra |
@@ -368,6 +399,8 @@ O melhor caso merece destaque por ser uma **limitação honesta do projeto**: co
 ### 5.2 Discussão crítica
 
 **Contra o Insertion Sort.** O OSJ *contém* o Insertion Sort como caso particular: com `w = n`, a Fase 2 vira uma inserção sobre o vetor inteiro. O parâmetro `w` portanto **interpola** entre uma família de comportamentos, e o Insertion é o extremo superior dessa família. A diferença estrutural é que o Insertion paga `Θ(Inv)` comparações sobre o vetor **original**, enquanto o OSJ paga `Θ(n s)` para reduzir `Inv` antes de aplicar o mesmo mecanismo. É uma troca explícita: gastar comparações baratas de amostragem para evitar comparações caras de deslocamento. Nos dados, `N = 2000` aleatório: Insertion faria da ordem de 10⁶ comparações; o OSJ faz 402 mil.
+
+**O pior caso é o Insertion Sort mais o troco.** A derivação da §4.3 permite dizer com precisão o que o OSJ *é* quando a Sondagem falha. As trocas de vizinhos somam `Inv(A₀)`, e é exatamente o que o Insertion Sort pagaria sobre o mesmo vetor — a Sanfona não tem mecanismo mais barato de desfazer inversão que o Insertion; a diferença dela está em *reduzir* `Inv` antes, e no pior caso essa redução não aconteceu. Sobre esse mesmo custo o OSJ acumula duas parcelas que o Insertion não tem: `Θ(n·s) = Θ(n^{5/3})` de sondagem inteiramente desperdiçada, e `Θ(n·P) = O(n^{4/3})` de varredura das janelas. Ambas são de ordem inferior a `n²`, então o pior caso não piora de ordem — mas são custo puro, sem contrapartida. Em uma linha: **no pior caso o OSJ degenera para o Insertion Sort acrescido de um overhead `Θ(n·s)`**, e é o preço de uma aposta que não pagou. É a mesma limitação de projeto do melhor caso (§4.4), vista do outro extremo: a sondagem é incondicional, então é cobrada tanto quando é inútil por o vetor já estar ordenado quanto quando é inútil por ter errado.
 
 **Contra o Merge Sort.** O Merge é assintoticamente superior (`n log n` contra `n^{5/3}`) e o OSJ não compete com ele — nem pretende. A diferença conceitual é de **onde vem a informação de ordem**: o Merge a constrói recursivamente por fusão, de forma determinística e exata; o OSJ a estima estatisticamente e depois repara o erro. O OSJ troca garantia por localidade: seu reparo é local e in-place, enquanto o Merge exige `O(n)` de espaço em toda fusão.
 
