@@ -315,6 +315,32 @@ class TestTheory(unittest.TestCase):
                 self.assertEqual(a, sorted(data),
                                  "'{0}' com w={1}".format(nome, w))
 
+    def test_passes_are_bounded_by_the_advance_lemma(self):
+        """Limite de varreduras que sustenta o pior caso (Secao 4.3).
+
+        O lema do avanco da P <= ceil(Dis_esq / floor(w/2)) + 1, e como
+        Dis_esq < n isso vale P <= 2n/w + 2. Aqui a Sondagem e sabotada com
+        s = 1 para entregar a Fase 2 um vetor quase maximamente desordenado
+        sem depender de sorte, e a constante usada na asserticao e 4 - o
+        dobro da que o lema prova, para nao transformar variacao amostral em
+        falha. Observado nesta suite: entre 1,4 e 1,95 vezes n/w.
+
+        Usa o contador publico Stats.passes apos ordenacao completa, como o
+        teste do melhor caso ja faz.
+        """
+        constante = 4.0
+        for n in (200, 400, 800, 1600, 3000):
+            random.seed(31)
+            data = [random.randint(0, 10 * n) for _ in range(n)]
+            out, st = osj_sort(data, s=1)
+            self.assertEqual(out, sorted(data), "n={0}".format(n))
+            limite = constante * n / st.w + 2
+            self.assertLessEqual(
+                st.passes, limite,
+                "o pior caso O(n^2) da Secao 4.3 depende de P = O(n/w) pelo "
+                "lema do avanco; com n={0} e w={1} isso da no maximo {2:.1f} "
+                "varreduras, mas foram {3}".format(n, st.w, limite, st.passes))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
