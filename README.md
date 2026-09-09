@@ -258,11 +258,65 @@ $$D \;\le\; 2\varepsilon n \;=\; O\!\left(n\sqrt{\frac{\log n}{s}}\right) \quad\
 
 ### 4.2 Fase 2 — custo em função da desordem recebida
 
-Cada janela custa `Θ(w)` comparações de varredura mais uma comparação por deslocamento. Com `2n/w` janelas por passada:
+Cada janela custa `Θ(w)` comparações de varredura mais uma comparação por troca de vizinhos. Com `2n/w` janelas por varredura:
 
-- **comparações por passada:** `Θ(n)` mais os deslocamentos daquela passada;
-- **total de deslocamentos em todas as passadas:** exatamente `Inv(A₀)`, pelo corolário da Seção 3.1;
-- **número de passadas:** cada passada reduz o deslocamento máximo em pelo menos `w/2`, logo `P = O(D/w + 1)`.
+- **comparações por varredura:** `Θ(n)` mais as trocas de vizinhos daquela varredura;
+- **total de trocas de vizinhos em todas as varreduras:** exatamente `Inv(A₀)`, pelo corolário da Seção 3.1;
+- **número de varreduras:** dado pelo **lema do avanço**, abaixo.
+
+#### Lema do avanço
+
+Seja o **deslocamento à esquerda** do vetor
+
+$$\mathrm{Dis}_{\text{esq}}(A) \;=\; \max_{x}\ \big(\mathrm{pos}(x) - \mathrm{posto}(x)\big)^{+}$$
+
+o maior número de posições que algum elemento ainda precisa recuar. Ele é dominado pelo deslocamento `D` da Seção 4.1, que limita o erro nos dois sentidos.
+
+> **Lema (avanço).** Se `Dis_esq(A) = d` no início de uma varredura, então ao fim dela `Dis_esq ≤ max(0, d − ⌊w/2⌋)`.
+
+**Premissas** — as duas primeiras são conjuntas, e nenhuma delas sozinha basta:
+
+1. **Sobreposição.** Inícios de janela consecutivos distam no máximo o passo `⌊w/2⌋` — inclusive o par formado pela última janela encostada na borda direita e a anterior.
+2. **Ordem crescente.** A varredura processa os inícios da esquerda para a direita. É por isso que a janela que carrega um elemento para a esquerda é a que **começa antes** dele, e não a que começa na posição dele.
+3. Cada janela sai internamente ordenada (a inserção dentro da janela é completa).
+
+**Redução a um vetor 0/1.** Fixe `m` e pinte de **1** os `m` menores elementos e de **0** os demais. Como todo 1 precede todo 0, ordenar uma janela equivale a **compactar seus 1s no extremo esquerdo dela**. Logo nenhum 1 jamais anda para a direita, e a posição `R_m` do 1 mais à direita é não-crescente ao longo da varredura. Além disso
+
+$$\mathrm{Dis}_{\text{esq}}(A) \;=\; \max_{m}\ \big(R_m - (m-1)\big)$$
+
+— tomando `m = posto(x) + 1` recupera-se o deslocamento de cada `x`, e `R_m` é sempre a posição de um elemento de posto `≤ m − 1`. Basta então provar, para cada `m`:
+
+> uma varredura leva `R_m` para no máximo `max(m − 1, R_m − ⌊w/2⌋)`.
+
+**Prova.** Escreva `passo = ⌊w/2⌋` e seja `ρ` a posição do 1 mais à direita **ao fim** da varredura. Se `ρ = m − 1`, os `m` uns ocupam o prefixo e não há o que provar. Caso contrário há um 0 à esquerda de `ρ`; seja `u` a menor posição tal que `[u, ρ]` contenha só 1s ao fim da varredura. Então `u ≥ 1` e a posição `u − 1` contém um 0.
+
+**Passo 1 — cobertura.** Este é o argumento da Seção 3.2, reaproveitado: a mesma sobreposição que sustenta a corretude sustenta o avanço. Seja `W_v = [v, v+w)` a **última** janela da varredura que contém a posição `u − 1`, e `v'` o início seguinte. Por maximalidade de `v` vale `v' > u − 1`; por cobertura, `v' ≤ v + passo`. Logo
+
+$$v \;\ge\; v' - \text{passo} \;\ge\; u - \text{passo}
+\qquad\Longrightarrow\qquad
+v + w \;\ge\; u + w - \text{passo} \;\ge\; u + \text{passo}$$
+
+**É essa meia janela sobrando à direita de `u` que vira o avanço.** (O início seguinte existe: se `W_v` fosse a última janela, nada além dela tocaria as posições `≥ u − 1`, que ficariam congeladas como `W_v` as deixou — e `ρ ≥ u` contradiz o próximo passo.)
+
+**Passo 2 — o que `W_v` deixa para trás.** Pela ordem crescente, toda janela processada depois de `W_v` começa à direita de `u − 1`; logo a posição `u − 1` nunca mais é tocada e já continha 0 ao fim de `W_v`. Como `W_v` sai com seus 1s compactados à esquerda, um 0 em `u − 1` obriga **todas** as posições `[u − 1, v+w)` a conterem 0 naquele instante.
+
+**Passo 3 — assimetria.** Um 1 nunca anda para a direita. Portanto cada um dos `ρ − u + 1` uns que ocupam `[u, ρ]` ao fim da varredura estava, imediatamente após `W_v`, em alguma posição `≥ v + w`: não podia estar em `[u − 1, v+w)`, que era só 0, nem à esquerda disso, de onde teria de andar para a direita. Como ocupavam posições distintas, o 1 mais à direita estava naquele instante em posição `≥ (v + w) + (ρ − u)`.
+
+**Passo 4 — conclusão.** `R_m` no início da varredura é maior ou igual a essa posição, porque é não-crescente. Portanto
+
+$$R_m - \rho \;\ge\; v + w - u \;\ge\; w - \text{passo} \;\ge\; \text{passo}$$
+
+usando `v ≥ u − passo` e `w ≥ 2⌊w/2⌋`. ∎
+
+**Por que o lado esquerdo basta.** `Dis_esq(A) = 0` já implica vetor ordenado: se `pos(x) ≤ posto(x)` para todo `x`, e posições e postos são a mesma família de índices, as somas coincidem e a desigualdade é igualdade em toda parte. O lema sozinho, então, limita o número de varreduras:
+
+$$P \;\le\; \left\lceil \frac{\mathrm{Dis}_{\text{esq}}(A_0)}{\lfloor w/2 \rfloor} \right\rceil + 1 \;=\; O\!\left(\frac{D}{w} + 1\right)$$
+
+somando a varredura final, que não movimenta nada e encerra o laço.
+
+**O enunciado simétrico é falso.** Para a direita não há avanço garantido: em `[2, 3, 0, 1]` com `w = 2`, o elemento `2` precisa avançar duas posições à direita e a varredura inteira o deixa onde estava (`[2, 0, 1, 3]`). Um elemento pode cascatear por janelas sucessivas na mesma varredura e andar muito para a direita, mas nada o obriga a andar. A garantia é do lado esquerdo — e, pelo parágrafo anterior, é o lado que a análise precisa.
+
+O lema é verificado por instrumentação em `test_osj.py::TestTheory::test_each_sweep_advances_half_a_window`, que dirige uma varredura por vez (pelo seam `_sweep`) sobre o vetor reverso e sobre a saída de uma Sondagem sabotada com `s = 1`, em quatro larguras de janela.
 
 $$T_{\text{Fase 2}} \;=\; \Theta\!\left(n \cdot \Big(\tfrac{D}{w} + 1\Big)\right) \;+\; \mathrm{Inv}(A_0), \qquad \mathrm{Inv}(A_0) = O(nD)$$
 
