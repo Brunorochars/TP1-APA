@@ -42,8 +42,10 @@ para instrumentação experimental.
 
 **Varredura**:
 Uma passagem completa da janela por todo o vetor, cobrindo todas as posições
-iniciais. Contada em `passes`. A Sanfona repete varreduras até que uma delas
-ocorra sem nenhuma troca de vizinhos.
+iniciais **em ordem crescente**, da esquerda para a direita. Contada em
+`passes`. A Sanfona repete varreduras até que uma delas ocorra sem nenhuma troca
+de vizinhos. A direção não é detalhe de implementação: ela é premissa do
+**avanço**.
 _Avoid_: passada, iteração, rodada
 
 ### O método e suas fases
@@ -82,6 +84,16 @@ Trecho contíguo de largura `w` ordenado por inserção de uma vez pela Sanfona.
 Distância entre os inícios de duas janelas consecutivas. É sempre `w/2`: janelas
 sobrepostas garantem que todo par de posições vizinhas caia dentro de alguma
 janela.
+
+**Avanço**:
+Quantidade mínima de posições que um elemento deslocado à esquerda percorre nessa
+direção em uma única varredura. É `w/2`, e é o que limita o número de varreduras
+a `O(D/w + 1)`. Decorre de duas premissas juntas: a sobreposição das janelas e a
+ordem crescente da varredura — a janela iniciada em `p - w/2` cobre a posição `p`
+e é processada antes dela. O avanço é assimétrico: para a direita um elemento
+cascateia por várias janelas na mesma varredura, para a esquerda ele está preso
+à janela que o cobre.
+_Avoid_: progresso, convergência, ganho por passada
 
 **Ponto fixo espúrio**:
 Estado em que uma varredura inteira não move nada mas o vetor não está ordenado.
