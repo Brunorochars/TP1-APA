@@ -328,9 +328,33 @@ O melhor caso merece destaque por ser uma **limitação honesta do projeto**: co
 | testemunhas independentes | 274 | 67.137 |
 | testemunhas compartilhadas | 79 | 12.368 |
 
-Distribuir elementos em baldes delimitados por quantis de uma amostra é precisamente a fase de distribuição do **Sample Sort**, técnica consolidada na literatura. Portanto: **a variante rápida é a menos autoral**, e é declarada aqui como adaptação de técnica conhecida, não como contribuição própria. A variante adotada como OSJ é a de **testemunhas independentes**, na qual cada elemento estima seu posto isoladamente, o mapa valor→posição **não** é monótono, e o comportamento resultante `Θ(n^{5/3})` não corresponde a nenhum método clássico identificado.
+Distribuir elementos em baldes delimitados por quantis de uma amostra é precisamente a fase de distribuição do **Sample Sort**, técnica consolidada na literatura. Portanto: **a variante rápida é a menos autoral**, e é declarada aqui como adaptação de técnica conhecida, não como contribuição própria. A variante adotada como OSJ é a de **testemunhas independentes**, na qual cada elemento estima seu posto isoladamente, o mapa valor→posição **não** é monótono, e o comportamento resultante `Θ(n^{5/3})` não corresponde a nenhum método clássico identificado. A fronteira com a família de distribuição inteira — e não apenas com o Sample Sort — é estabelecida na §5.3.
 
 A variante compartilhada é mantida no código (`my_authorial_sort_stable`) por dois motivos legítimos: ela é **estável** — chaves iguais recebem estimativa idêntica, caem no mesmo balde e preservam a ordem original, e a inserção estrita da Fase 2 preserva essa ordem — e serve de termo de comparação para isolar o efeito da independência das amostras.
+
+### 5.3 Vizinhos publicados mais próximos
+
+A estrutura "estimar a posição de cada elemento, depositá-lo lá, e concluir com um reparo determinístico" não é nova, e a honestidade exige nomear quem a publicou antes. Os quatro métodos abaixo são os vizinhos mais próximos identificados:
+
+| Método | Como estima a posição | Reparo final | Mapa valor→posição | Exige chave numérica |
+| :--- | :--- | :--- | :---: | :---: |
+| **ProxmapSort** (Standish, UC Irvine, ~1987) | *map key* aplicada à chave, produzindo um *proximity map* com o início do subarranjo de destino | inserção nos subarranjos | monótono | sim |
+| **Flashsort** (Neubert, *Dr. Dobb's*, 1998) | interpolação linear da chave em `[A_min, A_max]` sobre `m` classes | permutação in-place + *straight insertion* | monótono | sim |
+| **Sample Sort** | busca binária da chave numa amostra ordenada de separadores | ordenação intra-balde | monótono | não |
+| **Learned Sort** (Kristo et al., SIGMOD 2020) | modelo aprendido da **CDF empírica** aproxima a posição de saída de cada chave | algoritmo determinístico bom em vetores quase ordenados (Insertion Sort) | monótono | sim |
+| **OSJ** (este trabalho) | comparação contra `s` testemunhas sorteadas **por elemento** | Sanfona: janelas sobrepostas até o ponto fixo | **não monótono** | **não** |
+
+O Learned Sort é o mais próximo de todos, e a descrição dos próprios autores — aproximar a posição de saída de cada chave por um modelo e depois "aplicar um algoritmo determinístico que funciona bem em vetores quase ordenados" — é a mesma decomposição em duas fases proposta aqui. A filiação é reconhecida.
+
+**O que separa o OSJ da família inteira é uma única propriedade: a estimativa não é função monótona do valor.** Todos os métodos acima derivam a posição de uma operação *aritmética sobre a chave* — interpolação, quantil, CDF — e portanto entregam os baldes já globalmente ordenados entre si; são algoritmos de **distribuição**, e a desordem que resta ao reparo é apenas *intra-balde*. Na Sondagem independente cada elemento é comparado com testemunhas próprias, de modo que dois elementos podem receber estimativas em ordem trocada, e a desordem residual é **global**. Três consequências:
+
+1. **A Fase 2 não pode ser uma ordenação por balde.** Como a Fase 1 não ordena entre baldes, o reparo precisa ser uma iteração de ponto fixo sobre o vetor inteiro — é daí que a Sanfona vem, e é por isso que ela não é substituível por "ordenar cada balde".
+2. **O OSJ é comparison-only.** Não faz aritmética alguma sobre os valores, e ordena qualquer tipo totalmente ordenado — a suíte exercita inteiros, negativos e ponto flutuante. ProxmapSort, Flashsort e Learned Sort exigem chaves numéricas. (O Sample Sort também é comparison-only; o que o separa do OSJ é a monotonicidade, discutida na §5.2.)
+3. **O preço é o expoente.** A família de distribuição atinge comportamento quase linear em dados bem distribuídos; o OSJ fica em `Θ(n^{5/3})`. Essa é a fatura da independência das amostras — e é exatamente a mesma fatura medida na §5.2 entre as duas variantes da Sondagem.
+
+Uma busca por métodos publicados que estimem posto por **comparação contra testemunhas sorteadas independentemente por elemento** (realizada em setembro de 2026, com busca semântica e por palavra-chave) não retornou correspondência. Isso é um resultado negativo, não uma prova de inexistência, e é declarado como tal.
+
+**Onde a Sanfona se situa.** O parâmetro `w` interpola uma família conhecida: com `w = n` a Fase 2 é exatamente o Insertion Sort sobre o vetor inteiro; com `w = 2` ela degenera em varreduras de troca de vizinhos, isto é, uma bolha. A Sanfona é o interior dessa família — larga o suficiente para absorver o deslocamento deixado pela Sondagem, estreita o suficiente para custar `Θ(n)` por varredura.
 
 ---
 
@@ -466,6 +490,7 @@ Como parceiro de discussão técnica para a concepção do mecanismo, para orien
 
 - **Desigualdade de Hoeffding** — limite de concentração usado na análise da Fase 1.
 - **Sample Sort** — a variante de testemunhas compartilhadas é reconhecida como adaptação dessa técnica, conforme discutido na §5.2.
+- **ProxmapSort** (Standish, UC Irvine, ~1987), **Flashsort** (Neubert, *Dr. Dobb's Journal*, fev. 1998) e **Learned Sort** (Kristo, Vaidya, Çetintemel, Misra e Kraska, SIGMOD 2020) — os vizinhos publicados mais próximos da estrutura em duas fases, identificados por busca deliberada de originalidade e discutidos na §5.3. O Learned Sort é o mais próximo: a filiação é reconhecida, e a distinção reivindicada é a não-monotonicidade da estimativa.
 - **Shell Sort** — filiação conceitual da Fase 2 à família de inserções em subestruturas, com as diferenças estruturais explicitadas na §5.2.
 - **Ordenação adaptativa** — a medida de desordem `Dis(A)` (deslocamento máximo) e a função potencial `Inv(A)` são instrumentos padrão dessa literatura.
 
