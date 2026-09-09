@@ -2,10 +2,14 @@
 # TP1-APA — arquivos que nao devem ser versionados
 # =============================================================
 
-docs/
+# docs/* (nao docs/): o git nao permite reincluir nada dentro de um
+# diretorio excluido. Os ADRs e a config do agente sao versionados;
+# o Enunciado.md, nao.
+docs/*
+!docs/adr/
+!docs/agents/
 .claude
 claude.md
-CONTEXT.md
 
 # ---- Python: bytecode e caches ----
 __pycache__/
