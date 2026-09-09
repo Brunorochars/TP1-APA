@@ -151,6 +151,9 @@ def _sweep(a: List[Any], w: int, st: Stats) -> bool:
     a sobreposicao, e premissa do lema do avanco (Secao 4.2 do relatorio).
     """
     n = len(a)
+    if n < 2:
+        return False                  # sem par vizinho, nao ha o que ordenar
+
     w = max(2, min(w, n))
     step = max(1, w // 2)
 
@@ -337,17 +340,32 @@ def inversions(a: List[Any]) -> int:
     return total
 
 
+def _final_ranks(a: List[Any]) -> List[int]:
+    """Posto que cada posicao de a ocupara no vetor ordenado.
+
+    O desempate por indice (a[i], i) reproduz a ordenacao estavel, para que
+    chaves iguais nao inventem deslocamento.
+
+    Args:
+        a: Vetor observado.
+
+    Returns:
+        Lista em que a posicao i guarda o posto final do elemento a[i].
+    """
+    order = sorted(range(len(a)), key=lambda i: (a[i], i))
+    final = [0] * len(a)
+    for rank, i in enumerate(order):
+        final[i] = rank
+    return final
+
+
 def max_displacement(a: List[Any]) -> int:
     """Dis(A): maior distancia entre a posicao atual de um elemento e a
     posicao que ele ocupara no vetor ordenado."""
-    n = len(a)
-    if n == 0:
+    if not a:
         return 0
-    order = sorted(range(n), key=lambda i: (a[i], i))
-    final = [0] * n
-    for rank, i in enumerate(order):
-        final[i] = rank
-    return max(abs(i - final[i]) for i in range(n))
+    final = _final_ranks(a)
+    return max(abs(i - final[i]) for i in range(len(a)))
 
 
 def max_left_displacement(a: List[Any]) -> int:
@@ -357,11 +375,10 @@ def max_left_displacement(a: List[Any]) -> int:
 
     E a grandeza do lema do avanco (Secao 4.2): o lema vale para a esquerda,
     nao para a direita. Existe apenas na analise, como inversions()."""
-    n = len(a)
-    if n == 0:
+    if not a:
         return 0
-    order = sorted(range(n), key=lambda i: (a[i], i))
-    final = [0] * n
-    for rank, i in enumerate(order):
-        final[i] = rank
-    return max(max(i - final[i] for i in range(n)), 0)
+    final = _final_ranks(a)
+    # Os deslocamentos (i - posto) de uma permutacao somam zero, logo pelo
+    # menos um deles e >= 0 e o maximo nunca e negativo: o vetor ordenado da
+    # exatamente 0, sem precisar de piso artificial.
+    return max(i - final[i] for i in range(len(a)))
