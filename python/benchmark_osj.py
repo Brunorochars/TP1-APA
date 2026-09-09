@@ -29,7 +29,9 @@ from classical import (bubble_sort, insertion_sort, merge_sort,
 from authorial import dpes_sort
 from osj import my_authorial_sort, my_authorial_sort_stable
 
-OUT_DIR = os.path.join("..", "resultados")
+# Ancorado no arquivo, nao no diretorio atual: o script pode ser chamado
+# de qualquer lugar sem que as saidas mudem de lugar.
+OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "resultados")
 
 ALGORITHMS = {
     "Bubble Sort": bubble_sort,
