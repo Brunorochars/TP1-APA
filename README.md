@@ -24,7 +24,7 @@ Com os parâmetros equilibrados em `s = w = Θ(n^{2/3})`, o custo esperado é **
 uv sync                              # monta o ambiente a partir do uv.lock
 
 cd python
-uv run python test_osj.py -v         # suíte completa: 42 testes
+uv run python test_osj.py -v         # suíte completa: 44 testes
 uv run python student_template.py    # interface exigida pelo enunciado
 uv run python exemplo_didatico.py    # exemplo numérico passo a passo
 uv run python scaling_osj.py         # medição do expoente de escalabilidade
@@ -242,7 +242,7 @@ $$\mathbb{E}\big[T(n)\big] \;=\; \Theta\!\left(n^{5/3}\right) \qquad \text{para 
 
 — **toda** entrada, não uma entrada média.
 
-Ela é mais forte que o "caso médio" clássico do Quick Sort, que é uma média sobre permutações aleatórias da entrada. O que a licencia é que a distribuição do erro de estimativa não olha para a ordem da entrada: `X_i ~ Binomial(s, p_i)` depende apenas de `p_i = r_i/n`, isto é, do **posto** de `A[i]`, e a família dos postos é `{0, …, n−1}` seja qual for a permutação recebida. Nenhum passo da §4.1 usa hipótese sobre a entrada. Isso é corroborado experimentalmente pela §6.4: `sorted` 395.932, `random` 402.358, `reverse` 410.082 comparações para `N = 2000` — 2% de espalhamento entre a entrada mais favorável e a mais hostil aos métodos quadráticos. Aquela seção lê o dado como **limitação** (o OSJ não é adaptativo, e não colhe o `Θ(n)` que Insertion colhe no vetor ordenado); aqui ele é lido pela outra face, que é a favorável: a insensibilidade à ordem da entrada é exatamente a evidência de que a cota vale uniformemente, e não em média sobre entradas.
+Ela é mais forte que o "caso médio" clássico do Quick Sort, que é uma média sobre permutações aleatórias da entrada. O que a licencia é que a distribuição do erro de estimativa não olha para a ordem da entrada: `X_i ~ Binomial(s, p_i)` depende apenas de `p_i = r_i/n`, isto é, do **posto** de `A[i]`, e a família dos postos é `{0, …, n−1}` seja qual for a permutação recebida. Nenhum passo da §4.1 usa hipótese sobre a entrada. Isso é corroborado experimentalmente pela §6.4: `sorted` 397.562, `random` 402.550, `reverse` 409.441 comparações para `N = 2000` — 3% de espalhamento entre a entrada mais favorável e a mais hostil aos métodos quadráticos. Aquela seção lê o dado como **limitação** (o OSJ não é adaptativo, e não colhe o `Θ(n)` que Insertion colhe no vetor ordenado); aqui ele é lido pela outra face, que é a favorável: a insensibilidade à ordem da entrada é exatamente a evidência de que a cota vale uniformemente, e não em média sobre entradas.
 
 **2. De onde vem o `Θ`.** A soma da §4.3 é `Θ(ns) + O(n²/√s)`, e uma soma de `Θ` com `O` é um `O` — sozinha ela dá cota superior, não `Θ`. A cota inferior é **própria e incondicional**, e vem da Fase 1: a Sondagem faz exatamente `n·s` comparações e `n` movimentações, sem olhar para nada, logo `T(n) ≥ Θ(n·s) = Ω(n^{5/3})` em **toda** execução — não só em esperança. É o mesmo fato que a §4.4 usa para o melhor caso `Ω(n^{5/3})`. As duas pontas juntas fecham o `Θ`.
 
@@ -420,7 +420,7 @@ O limite `P = O(n/w)` que sustenta a derivação é medido em `test_osj.py::Test
 | **Estabilidade** | não (variante padrão) | sim na variante de testemunhas compartilhadas — ver §5.2 |
 | **Determinismo** | não | aleatorizado, mas **a corretude é determinística** |
 
-O melhor caso merece destaque por ser uma **limitação honesta do projeto**: como a sondagem é incondicional, o OSJ gasta `Θ(n^{5/3})` mesmo num vetor já ordenado, enquanto Insertion e Bubble gastam `Θ(n)`. Os dados experimentais confirmam: 395.932 comparações no vetor ordenado contra 402.358 no aleatório para `N = 2000` — praticamente idênticos. A Seção 7 discute como corrigir isso.
+O melhor caso merece destaque por ser uma **limitação honesta do projeto**: como a sondagem é incondicional, o OSJ gasta `Θ(n^{5/3})` mesmo num vetor já ordenado, enquanto Insertion e Bubble gastam `Θ(n)`. Os dados experimentais confirmam: 397.562 comparações no vetor ordenado contra 402.550 no aleatório para `N = 2000` — praticamente idênticos. A Seção 7 discute como corrigir isso.
 
 ---
 
@@ -448,7 +448,7 @@ O melhor caso merece destaque por ser uma **limitação honesta do projeto**: co
 
 **Relação com o Shell Sort.** É a comparação mais delicada, e precisa ser explicitada. O Shell Sort também aplica inserções sobre subconjuntos e converge por refinamentos sucessivos. As diferenças estruturais são duas: (i) o Shell opera sobre elementos **distantes** separados por um incremento `h`, ao passo que a Sanfona opera sobre blocos **contíguos**; (ii) a sequência do Shell é **decrescente** (do grosseiro ao fino), enquanto a Sanfona mantém `w` fixo e itera até o ponto fixo. Ainda assim, ambos pertencem à mesma família conceitual de "inserção em subestruturas com convergência iterativa", e essa filiação é reconhecida aqui.
 
-**Relação com o Sample Sort — e um resultado que exige transparência.** A variante do OSJ com **testemunhas compartilhadas** (todos os elementos consultam a mesma amostra) mede-se muito melhor: expoente empírico 1,19 contra 1,59 da variante padrão. A investigação da causa revelou que ela **deixa de ser o algoritmo proposto**: quando a amostra é comum, a posição estimada torna-se uma função **monótona** do valor, de modo que a saída da Fase 1 já está globalmente ordenada *entre* os baldes, restando desordem apenas *dentro* de cada balde. Medição confirmando, para `n = 2000`:
+**Relação com o Sample Sort — e um resultado que exige transparência.** A variante do OSJ com **testemunhas compartilhadas** (todos os elementos consultam a mesma amostra) mede-se muito melhor: expoente empírico 1,17 contra 1,59 da variante padrão. A investigação da causa revelou que ela **deixa de ser o algoritmo proposto**: quando a amostra é comum, a posição estimada torna-se uma função **monótona** do valor, de modo que a saída da Fase 1 já está globalmente ordenada *entre* os baldes, restando desordem apenas *dentro* de cada balde. Medição confirmando, para `n = 2000`:
 
 | variante | deslocamento máximo após a Fase 1 | inversões restantes |
 | :--- | ---: | ---: |
@@ -490,11 +490,16 @@ Uma busca por métodos publicados que estimem posto por **comparação contra te
 
 ### 6.1 Metodologia
 
-- 8 algoritmos × 5 distribuições × 7 tamanhos × 3 repetições, com verificação de ordenação em **todas** as execuções.
+- 8 algoritmos × 5 distribuições × 7 tamanhos × **5 repetições**, com verificação de ordenação em **todas** as execuções.
 - Distribuições: `random`, `sorted`, `reverse`, `duplicates`, `almost_sorted`, geradas pelo `generate_dataset` do próprio pacote da disciplina, de modo que os baselines enfrentem exatamente os mesmos vetores.
-- Métricas: tempo médio, comparações e movimentações, sob a mesma convenção de contagem de `classical.py`.
-- Semente fixa (`random.seed(42)`) para reprodutibilidade.
+- Métricas: tempo, comparações e movimentações, sob a mesma convenção de contagem de `classical.py`. O tempo é publicado como **média ± desvio-padrão amostral** das 5 repetições; comparações e movimentações são médias, e sua dispersão é de outra natureza — não dependem da carga da máquina, só do sorteio da Sondagem.
+- Semente fixa (`random.seed(42)`) em ambos os experimentos, e ambiente fixado pelo `uv.lock`: os números citados aqui se reproduzem.
 - Dados brutos em [`resultados/benchmark_osj.csv`](resultados/benchmark_osj.csv); tabelas completas em [`resultados/benchmark_osj.md`](resultados/benchmark_osj.md).
+
+**Por que os tetos de `N` são estes.** Os dois experimentos param em pontos diferentes, e por motivos diferentes.
+
+- **Comparativo, `N ≤ 2000`.** O teto é imposto pelos *baselines*, não pelo OSJ. Em `N = 2000` os três quadráticos já fazem da ordem de `2·10⁶` comparações por execução — nas distribuições `random` e `reverse` eles já são omitidos nesse ponto por custo proibitivo. Cada dobra de `N` multiplica esse custo por ~4 sem acrescentar informação: o regime quadrático já está inequívoco, com expoentes medidos de 2,03, 2,02 e 1,96 contra os 2,0 teóricos. Medir mais longe encareceria o experimento para reconfirmar um fato assentado.
+- **Escalabilidade, `N ≤ 10⁴`.** Aqui só o OSJ roda, e o limite é o custo dele próprio: uma execução em `N = 10⁴` leva ~5,0 s, isto é ~25 s só para as 5 repetições daquele ponto, e a dobra seguinte custaria ~3× isso. O teto é ainda assim suficiente para o que o experimento existe para responder — o ajuste já estabilizou em 1,641 contra os 1,667 previstos, e a distância remanescente é de termos de ordem inferior, não de expoente.
 
 ### 6.2 Escalabilidade e verificação do expoente
 
@@ -505,8 +510,8 @@ Em escala log-log, `T(n) ~ c·n^k` vira uma reta de inclinação `k`. A curva me
 | | expoente |
 | :--- | ---: |
 | Previsto pela análise | **1,667** |
-| Medido (comparações, `N` até 2000) | **1,593** |
-| Medido (comparações, `N` até 8000) | **1,639** |
+| Medido (comparações, `N` até 2000) | **1,591** |
+| Medido (comparações, `N` até 10⁴) | **1,641** |
 
 A aproximação melhora conforme `N` cresce, como esperado: os termos de ordem inferior perdem peso relativo.
 
@@ -520,26 +525,26 @@ A aproximação melhora conforme `N` cresce, como esperado: os termos de ordem i
 
 | Algoritmo | comparações | tempo |
 | :--- | ---: | ---: |
-| Bubble Sort | 2,032 | 1,890 |
-| Selection Sort | 2,021 | 1,803 |
-| Insertion Sort | 1,961 | 1,814 |
-| **OSJ** | **1,593** | **1,460** |
-| DPES (referência) | 1,338 | 1,114 |
-| Merge Sort | 1,271 | 0,955 |
-| Quick Sort | 1,185 | 1,035 |
+| Bubble Sort | 2,030 | 1,862 |
+| Selection Sort | 2,021 | 1,697 |
+| Insertion Sort | 1,960 | 1,725 |
+| **OSJ** | **1,591** | **1,411** |
+| DPES (referência) | 1,340 | 1,100 |
+| Merge Sort | 1,269 | 1,047 |
+| Quick Sort | 1,185 | 0,984 |
 
 **Comparações absolutas, distribuição aleatória:**
 
 | Algoritmo | N=100 | N=500 | N=1000 | N=2000 |
 | :--- | ---: | ---: | ---: | ---: |
-| Bubble Sort | 4.917 | 124.154 | 498.943 | — |
+| Bubble Sort | 4.837 | 124.399 | 498.093 | — |
 | Selection Sort | 4.950 | 124.750 | 499.500 | — |
-| Insertion Sort | 2.730 | 65.537 | 250.362 | — |
-| **OSJ** | 3.247 | 41.701 | 130.455 | 402.358 |
-| OSJ estável | 1.019 | 6.779 | 15.334 | 34.190 |
-| DPES (referência) | 1.026 | 7.982 | 18.118 | 40.901 |
-| Merge Sort | 543 | 3.861 | 8.719 | 19.401 |
-| Quick Sort | 969 | 6.263 | 14.013 | 29.670 |
+| Insertion Sort | 2.543 | 63.278 | 248.229 | — |
+| **OSJ** | 3.236 | 41.650 | 129.729 | 402.550 |
+| OSJ estável | 1.019 | 6.714 | 14.779 | 34.521 |
+| DPES (referência) | 1.027 | 7.991 | 18.047 | 40.975 |
+| Merge Sort | 542 | 3.865 | 8.709 | 19.426 |
+| Quick Sort | 996 | 6.227 | 13.957 | 29.963 |
 
 O OSJ ocupa exatamente o nicho previsto pela teoria: nitidamente superior aos quadráticos a partir de `N ≈ 300`, nitidamente inferior aos `n log n`. O cruzamento com o Insertion Sort ocorre cedo justamente porque o termo `n·s` é linear em `n` para `s` fixo, mas o `Inv` do Insertion cresce quadraticamente.
 
@@ -547,17 +552,17 @@ O OSJ ocupa exatamente o nicho previsto pela teoria: nitidamente superior aos qu
 
 | Distribuição | Comparações (N=2000) | Leitura |
 | :--- | ---: | :--- |
-| `sorted` | 395.932 | **quase igual ao aleatório** — a Fase 1 não é adaptativa |
-| `random` | 402.358 | caso de referência |
-| `reverse` | 410.082 | o "pior caso" clássico praticamente não pesa |
+| `sorted` | 397.562 | **quase igual ao aleatório** — a Fase 1 não é adaptativa |
+| `random` | 402.550 | caso de referência |
+| `reverse` | 409.441 | o "pior caso" clássico praticamente não pesa |
 
-Este é o resultado experimental mais informativo do trabalho, e é **desfavorável ao algoritmo**: o OSJ é quase **insensível à ordem da entrada**. O vetor reverso, que arruína Bubble e Insertion, custa apenas 2% a mais que o aleatório; e o vetor já ordenado, que aqueles resolvem em `Θ(n)`, custa aqui praticamente o mesmo que o caso médio. A explicação é direta: o termo dominante `n·s` da Fase 1 é pago incondicionalmente, e ele não olha para a ordem da entrada.
+Este é o resultado experimental mais informativo do trabalho, e é **desfavorável ao algoritmo**: o OSJ é quase **insensível à ordem da entrada**. O vetor reverso, que arruína Bubble e Insertion, custa apenas 1,7% a mais que o aleatório; e o vetor já ordenado, que aqueles resolvem em `Θ(n)`, custa aqui praticamente o mesmo que o caso médio. A explicação é direta: o termo dominante `n·s` da Fase 1 é pago incondicionalmente, e ele não olha para a ordem da entrada.
 
-**A mesma medição tem uma leitura favorável, e as convenções da §4 a usam.** A cota reivindicada ali é `E[T(n)] = Θ(n^{5/3})` para *toda* entrada — esperança sobre a aleatoriedade da Sondagem, não média sobre entradas aleatórias. Uma cota assim prevê justamente que trocar a distribuição da entrada não mova o custo, e é o que estes 2% de espalhamento mostram. O mesmo experimento é, portanto, evidência contra a adaptatividade e evidência a favor da uniformidade da cota: são as duas faces do fato de a Sondagem ser incondicional.
+**A mesma medição tem uma leitura favorável, e as convenções da §4 a usam.** A cota reivindicada ali é `E[T(n)] = Θ(n^{5/3})` para *toda* entrada — esperança sobre a aleatoriedade da Sondagem, não média sobre entradas aleatórias. Uma cota assim prevê justamente que trocar a distribuição da entrada não mova o custo, e é o que estes 3% de espalhamento mostram. O mesmo experimento é, portanto, evidência contra a adaptatividade e evidência a favor da uniformidade da cota: são as duas faces do fato de a Sondagem ser incondicional.
 
 ### 6.5 Validação de corretude
 
-`python test_osj.py` — **42 testes, todos aprovados**:
+`python test_osj.py` — **44 testes, todos aprovados**:
 
 - Os 10 cenários obrigatórios do `test_suite.py` do pacote da disciplina, aplicados a **três** alvos: OSJ padrão, OSJ estável e a Sanfona isolada.
 - Casos limite `N = 0` e `N = 1`, vetor unitário, vetores com todos os elementos idênticos, negativos e ponto flutuante.
@@ -620,9 +625,9 @@ Nenhuma reescrita cosmética foi feita sobre o texto da ferramenta: as alteraç�
 
 ### Como o resultado foi validado
 
-- Suíte de 42 testes automatizados cobrindo todos os cenários obrigatórios do enunciado mais os testes de propriedade e de teoria descritos na §6.5.
+- Suíte de 44 testes automatizados cobrindo todos os cenários obrigatórios do enunciado mais os testes de propriedade e de teoria descritos na §6.5.
 - Verificação cruzada de toda saída contra `sorted()` da biblioteca padrão, em cada uma das execuções de benchmark.
-- **Confronto quantitativo entre teoria e experimento:** o expoente deduzido analiticamente (5/3 = 1,667) foi confrontado com o expoente medido por ajuste de mínimos quadrados em escala log-log (1,593 a 1,639).
+- **Confronto quantitativo entre teoria e experimento:** o expoente deduzido analiticamente (5/3 = 1,667) foi confrontado com o expoente medido por ajuste de mínimos quadrados em escala log-log (1,591 a 1,641).
 - **Verificação de teorema por instrumentação:** a identidade `trocas de vizinhos = Inv(A₀)`, derivada da prova de término, foi verificada como igualdade exata em quatro distribuições distintas.
 - Verificação executável do contraexemplo que justifica a sobreposição das janelas.
 
@@ -645,7 +650,7 @@ TP1-APA/
 ├── uv.lock                      versões exatas, para reprodutibilidade
 ├── python/
 │   ├── osj.py                   ← algoritmo autoral (implementação e documentação)
-│   ├── test_osj.py              ← suíte de 42 testes
+│   ├── test_osj.py              ← suíte de 44 testes
 │   ├── benchmark_osj.py         ← benchmark comparativo e geração de gráficos
 │   ├── scaling_osj.py           ← medição do expoente de escalabilidade
 │   ├── exemplo_didatico.py      ← exemplo numérico passo a passo
