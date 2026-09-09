@@ -21,16 +21,21 @@ Com os parâmetros equilibrados em `s = w = Θ(n^{2/3})`, o custo esperado é **
 ## Como executar
 
 ```bash
-cd python
+uv sync                              # monta o ambiente a partir do uv.lock
 
-python test_osj.py -v        # suíte completa: 42 testes
-python student_template.py   # interface exigida pelo enunciado
-python exemplo_didatico.py   # exemplo numérico passo a passo
-python scaling_osj.py        # medição do expoente de escalabilidade
-python benchmark_osj.py      # benchmark completo + gráficos em ../resultados/
+cd python
+uv run python test_osj.py -v         # suíte completa: 42 testes
+uv run python student_template.py    # interface exigida pelo enunciado
+uv run python exemplo_didatico.py    # exemplo numérico passo a passo
+uv run python scaling_osj.py         # medição do expoente de escalabilidade
+uv run python benchmark_osj.py       # benchmark completo + gráficos em ../resultados/
 ```
 
-Sem dependências além da biblioteca padrão, exceto `matplotlib` para os gráficos.
+O algoritmo e a suíte de testes **não têm dependência alguma** além da biblioteca
+padrão: `python test_osj.py` roda num Python 3.11 limpo, sem `uv`. O ambiente
+existe por causa do `matplotlib`, usado só na geração dos gráficos — e o
+`uv.lock` fixa as versões exatas para que as medições relatadas aqui se
+reproduzam.
 
 ---
 
@@ -471,6 +476,8 @@ Como parceiro de discussão técnica para a concepção do mecanismo, para orien
 ```
 TP1-APA/
 ├── README.md                    este relatório
+├── pyproject.toml               dependências (uv): apenas matplotlib
+├── uv.lock                      versões exatas, para reprodutibilidade
 ├── python/
 │   ├── osj.py                   ← algoritmo autoral (implementação e documentação)
 │   ├── test_osj.py              ← suíte de 42 testes
