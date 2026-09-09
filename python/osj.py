@@ -117,10 +117,10 @@ def default_w(n: int) -> int:
 # ---------------------------------------------------------------------------
 
 def _insertion_window(a: List[Any], lo: int, hi: int, st: Stats) -> bool:
-    """Ordena a[lo:hi] por insercao. Devolve True se houve deslocamento.
+    """Ordena a[lo:hi] por insercao. Devolve True se houve troca de vizinhos.
 
     Usa comparacao estrita (a[j] > key), portanto e estavel.
-    Cada deslocamento equivale a uma troca de vizinhos e reduz Inv(A) em 1.
+    Cada troca de vizinhos reduz Inv(A) em 1.
     """
     moved = False
     for i in range(lo + 1, hi):
