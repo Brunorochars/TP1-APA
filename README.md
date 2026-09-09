@@ -234,6 +234,41 @@ O intervalo de comprimento `w − 1` mostra que o passo máximo admissível é `
 
 ## 4. Análise assintótica
 
+**Convenções desta seção.** O OSJ é aleatorizado, e cotas de um método aleatorizado só significam alguma coisa quando o regime probabilístico está dito. Três fixações valem para tudo o que segue.
+
+**1. Sobre o que a esperança é tomada.** A esperança é sobre a aleatoriedade da **Sondagem** — o sorteio das testemunhas —, e **não** sobre uma distribuição de entradas. A afirmação é a forte:
+
+$$\mathbb{E}\big[T(n)\big] \;=\; \Theta\!\left(n^{5/3}\right) \qquad \text{para toda entrada de tamanho } n$$
+
+— **toda** entrada, não uma entrada média.
+
+Ela é mais forte que o "caso médio" clássico do Quick Sort, que é uma média sobre permutações aleatórias da entrada. O que a licencia é que a distribuição do erro de estimativa não olha para a ordem da entrada: `X_i ~ Binomial(s, p_i)` depende apenas de `p_i = r_i/n`, isto é, do **posto** de `A[i]`, e a família dos postos é `{0, …, n−1}` seja qual for a permutação recebida. Nenhum passo da §4.1 usa hipótese sobre a entrada. Isso é corroborado experimentalmente pela §6.4: `sorted` 395.932, `random` 402.358, `reverse` 410.082 comparações para `N = 2000` — 2% de espalhamento entre a entrada mais favorável e a mais hostil aos métodos quadráticos. Aquela seção lê o dado como **limitação** (o OSJ não é adaptativo, e não colhe o `Θ(n)` que Insertion colhe no vetor ordenado); aqui ele é lido pela outra face, que é a favorável: a insensibilidade à ordem da entrada é exatamente a evidência de que a cota vale uniformemente, e não em média sobre entradas.
+
+**2. De onde vem o `Θ`.** A soma da §4.3 é `Θ(ns) + O(n²/√s)`, e uma soma de `Θ` com `O` é um `O` — sozinha ela dá cota superior, não `Θ`. A cota inferior é **própria e incondicional**, e vem da Fase 1: a Sondagem faz exatamente `n·s` comparações e `n` movimentações, sem olhar para nada, logo `T(n) ≥ Θ(n·s) = Ω(n^{5/3})` em **toda** execução — não só em esperança. É o mesmo fato que a §4.4 usa para o melhor caso `Ω(n^{5/3})`. As duas pontas juntas fecham o `Θ`.
+
+Explicitando as três parcelas da cota superior em esperança, para que se veja qual delas é probabilística:
+
+| parcela | cota | de onde vem |
+| :--- | :--- | :--- |
+| Fase 1 | `Θ(n·s) = Θ(n^{5/3})` | determinística, exata |
+| varredura das janelas | `Θ(n)·P = O(n^{4/3})` | determinística: `Dis_esq(A₀) ≤ n − 1` sempre, logo `P = O(n/w)` pelo lema do avanço (§4.2) |
+| trocas de vizinhos | `E[Inv(A₀)] = O(n²/√s) = O(n^{5/3})` | **única parcela probabilística**; ver o parágrafo abaixo |
+
+A parcela probabilística usa a desigualdade elementar `Inv(A) ≤ d₁ + … + dₙ`, onde `dᵢ` é o deslocamento do `i`-ésimo elemento em relação ao seu posto (toda inversão tem ao menos um dos dois elementos deslocado, e cada elemento é contado uma vez por unidade de deslocamento). Aplicando **linearidade da esperança** e a estimativa de erro típico da §4.1, `E[dᵢ] = O(n/√s)`, vem `E[Inv(A₀)] = O(n²/√s)`. É uma soma, não um máximo — por isso ela não precisa de Hoeffding, e por isso o regime de esperança sai mais barato que o de alta probabilidade. Note também que o termo de varredura é dominado em qualquer regime: mesmo com a estimativa mais pessimista possível de `Dis_esq`, ele fica em `O(n^{4/3}) = o(n^{5/3})`.
+
+**3. Os dois regimes, lado a lado.** As duas cotas abaixo são afirmações diferentes, e a §4.4 passa a enunciar as duas:
+
+| regime | cota | parâmetros | instrumento |
+| :--- | :--- | :--- | :--- |
+| **esperança** (sobre a Sondagem, para toda entrada) | `E[T(n)] = Θ(n^{5/3})` | `s = w = Θ(n^{2/3})` | variância de `p̂_i` (§4.1) |
+| **alta probabilidade** (`1 − n^{−c}`, para toda entrada) | `T(n) = O(n^{5/3}(log n)^{1/3})` | `s = w = Θ(n^{2/3}(log n)^{1/3})` | Hoeffding + cota da união (§4.1) |
+
+A segunda linha é um fator `(log n)^{1/3}` mais cara, e a diferença é estrutural: para valer *simultaneamente* para os `n` elementos, a cota da união cobra `ε = Θ(√(log n / s))` em vez de `Θ(1/√s)`, o que infla o deslocamento para `D = O(n√(log n/s))`. Reotimizando `s` com esse `D` — minimizar `n·s + n²(log n)^{1/2}·s^{−1/2}` dá `s^{3/2} = Θ(n (log n)^{1/2})`, isto é `s = Θ(n^{2/3}(log n)^{1/3})` — chega-se a `T = Θ(n·s) = O(n^{5/3}(log n)^{1/3})`. **Fixados os parâmetros da implementação** (`s = w = Θ(n^{2/3})`, ADR-0002), a mesma conta dá `O(n^{5/3}(log n)^{1/2})`; o `(log n)^{1/3}` é a cota do regime com os parâmetros ajustados a ele. O código mantém `Θ(n^{2/3})`: é o ótimo do regime de esperança, que é o regime em que o algoritmo é reivindicado, e a diferença é um fator sublogarítmico que nenhum experimento nesta escala distingue.
+
+O pior caso (§4.3) é a terceira afirmação, e vive no complemento desses eventos: `O(n²)`, cota superior e não `Θ`, atingível apenas se a Sondagem devolver `Inv(A₀) = Θ(n²)`.
+
+Nada aqui reabre a escolha de variante (ADR-0001, sondagem independente) nem a de parâmetros (ADR-0002).
+
 ### 4.1 Fase 1 — análise probabilística
 
 Seja `r_i` o posto verdadeiro de `A[i]` (número de elementos estritamente menores) e `p_i = r_i / n`. Cada testemunha é sorteada uniformemente, logo
@@ -334,7 +369,11 @@ e, substituindo, `w* = Θ(D) = Θ(n / √s*) = Θ(n^{2/3})` também. Ambas as fa
 
 $$T(n) \;=\; \Theta\!\left(n \cdot n^{2/3}\right) \;=\; \boxed{\Theta\!\left(n^{5/3}\right)}$$
 
-*(A versão com garantia de alta probabilidade carrega um fator `(log n)^{1/3}` adicional, oriundo do `√log n` do limite de Hoeffding.)*
+Esta é a cota do **regime de esperança**, e a otimização acima usou o erro *típico* `O(n/√s)` — o que a variância dá. Trocá-lo pela garantia simultânea de Hoeffding da §4.1, `D = O(n√(log n/s))`, e reotimizar `s` produz a cota do **regime de alta probabilidade**:
+
+$$s^{*}_{\text{hp}} \;=\; \Theta\!\left(n^{2/3}(\log n)^{1/3}\right) \qquad\Longrightarrow\qquad T(n) \;=\; O\!\left(n^{5/3}(\log n)^{1/3}\right)$$
+
+com probabilidade `1 − n^{−c}`. O fator `(log n)^{1/3}` é o preço da cota da união sobre os `n` elementos, e é o que separa as duas linhas do quadro-resumo abaixo; as convenções na abertura da §4 detalham a conta e o que muda ao manter `s = Θ(n^{2/3})`.
 
 #### Pior caso
 
@@ -372,7 +411,8 @@ O limite `P = O(n/w)` que sustenta a derivação é medido em `test_osj.py::Test
 | Propriedade | OSJ | Observação |
 | :--- | :--- | :--- |
 | **Melhor caso** | `Ω(n^{5/3})` | a Fase 1 **não** é adaptativa: paga `n·s` mesmo com o vetor já ordenado |
-| **Caso médio** | `Θ(n^{5/3})` | com `s = w = Θ(n^{2/3})`; confirmado empiricamente (expoente 1,59) |
+| **Caso médio (esperança)** | `Θ(n^{5/3})` | esperança sobre a Sondagem, para **toda** entrada; `s = w = Θ(n^{2/3})`; confirmado empiricamente (expoente 1,59) |
+| **Alta probabilidade** | `O(n^{5/3}(log n)^{1/3})` | com probabilidade `1 − n^{−c}`, por Hoeffding + cota da união (§4.1), reotimizando `s = w = Θ(n^{2/3}(log n)^{1/3})` |
 | **Pior caso** | `O(n²)` | sondagem degenerada; derivado na §4.3 de duas peças: `P = O(n/w)` pelo lema do avanço (§4.2) e `Inv ≤ n(n−1)/2` pelo potencial (§3.1) |
 | **Movimentações** | exatamente `Inv(A₀)` | fórmula fechada, não apenas cota |
 | **Espaço auxiliar** | `Θ(n)` | baldes e vetor de saída da Fase 1 |
@@ -512,6 +552,8 @@ O OSJ ocupa exatamente o nicho previsto pela teoria: nitidamente superior aos qu
 | `reverse` | 410.082 | o "pior caso" clássico praticamente não pesa |
 
 Este é o resultado experimental mais informativo do trabalho, e é **desfavorável ao algoritmo**: o OSJ é quase **insensível à ordem da entrada**. O vetor reverso, que arruína Bubble e Insertion, custa apenas 2% a mais que o aleatório; e o vetor já ordenado, que aqueles resolvem em `Θ(n)`, custa aqui praticamente o mesmo que o caso médio. A explicação é direta: o termo dominante `n·s` da Fase 1 é pago incondicionalmente, e ele não olha para a ordem da entrada.
+
+**A mesma medição tem uma leitura favorável, e as convenções da §4 a usam.** A cota reivindicada ali é `E[T(n)] = Θ(n^{5/3})` para *toda* entrada — esperança sobre a aleatoriedade da Sondagem, não média sobre entradas aleatórias. Uma cota assim prevê justamente que trocar a distribuição da entrada não mova o custo, e é o que estes 2% de espalhamento mostram. O mesmo experimento é, portanto, evidência contra a adaptatividade e evidência a favor da uniformidade da cota: são as duas faces do fato de a Sondagem ser incondicional.
 
 ### 6.5 Validação de corretude
 
