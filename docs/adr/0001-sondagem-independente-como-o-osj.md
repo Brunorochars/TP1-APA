@@ -36,3 +36,13 @@ método clássico identificado.
 - O trabalho aceita medir pior em troca de poder reivindicar autoria. Como o
   enunciado avalia raciocínio projetual e não performance bruta, a troca é
   favorável.
+- **Emenda (09/09/2026).** A busca deliberada de originalidade encontrou um
+  vizinho publicado mais próximo que o Sample Sort: o **Learned Sort** (Kristo,
+  Vaidya, Çetintemel, Misra e Kraska, SIGMOD 2020), que estima a posição de saída
+  de cada chave por um modelo da CDF empírica e conclui com um algoritmo
+  determinístico bom em vetores quase ordenados. É a mesma decomposição em duas
+  fases. Isso **não** reverte esta decisão — reforça-a: a não-monotonicidade
+  deixa de separar o OSJ apenas do Sample Sort e passa a separá-lo da família de
+  distribuição inteira (ProxmapSort, Flashsort, Learned Sort), que deriva a
+  posição de aritmética sobre o valor da chave. A fronteira, agora afirmada por
+  propriedade e não por ausência, está na §5.3 do relatório.
