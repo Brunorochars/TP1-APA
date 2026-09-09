@@ -12,6 +12,7 @@ log T = log c + k * log n, e k e a inclinacao da reta.
 
 import math
 import random
+import statistics
 import time
 
 from osj import osj_sort, default_s, default_w
@@ -29,31 +30,33 @@ def fit_exponent(ns, ys):
 
 
 def main():
-    sizes = [250, 500, 1000, 2000, 4000, 8000]
-    trials = 2
+    sizes = [250, 500, 1000, 2000, 4000, 8000, 10000]
+    trials = 5
     random.seed(42)
 
-    print("{:>7} {:>6} {:>6} {:>14} {:>14} {:>8} {:>10}".format(
-        "N", "s", "w", "comparacoes", "movimentacoes", "passadas", "tempo(ms)"))
-    print("-" * 72)
+    print("{:>7} {:>6} {:>6} {:>14} {:>14} {:>8} {:>10} {:>10}".format(
+        "N", "s", "w", "comparacoes", "movimentacoes", "passadas",
+        "tempo(ms)", "dp(ms)"))
+    print("-" * 83)
 
     ns, comps, times = [], [], []
     for n in sizes:
         c_acc = m_acc = p_acc = 0
-        t_acc = 0.0
+        samples = []
         for _ in range(trials):
             data = [random.randint(0, 10 * n) for _ in range(n)]
             t0 = time.perf_counter()
             out, st = osj_sort(data)
-            t_acc += (time.perf_counter() - t0) * 1000.0
+            samples.append((time.perf_counter() - t0) * 1000.0)
             assert out == sorted(data), "erro de ordenacao em n={}".format(n)
             c_acc += st.comparisons
             m_acc += st.moves
             p_acc += st.passes
         c = c_acc / trials
-        t = t_acc / trials
-        print("{:>7} {:>6} {:>6} {:>14,.0f} {:>14,.0f} {:>8.1f} {:>10.1f}".format(
-            n, default_s(n), default_w(n), c, m_acc / trials, p_acc / trials, t))
+        t = statistics.fmean(samples)
+        print("{:>7} {:>6} {:>6} {:>14,.0f} {:>14,.0f} {:>8.1f} {:>10.1f} {:>10.1f}".format(
+            n, default_s(n), default_w(n), c, m_acc / trials, p_acc / trials,
+            t, statistics.stdev(samples)))
         ns.append(n); comps.append(c); times.append(t)
 
     print()
