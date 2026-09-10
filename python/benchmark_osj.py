@@ -6,7 +6,11 @@ Produz, em ../resultados/ :
     benchmark_osj.md         tabelas em Markdown, prontas para o relatorio
     benchmark_tempo.png      curvas de tempo por distribuicao
     benchmark_comparacoes.png curvas de comparacoes por distribuicao
-    escalabilidade_loglog.png ajuste log-log com expoentes empiricos
+
+O grafico de escalabilidade (escalabilidade_loglog.png) NAO sai daqui: ele
+pertence ao scaling_osj.py, que mede ate N = 10^4. Este benchmark para em
+N = 2000 por causa dos baselines quadraticos, e um ajuste feito sobre essa
+faixa contradiria o expoente que o relatorio publica.
 
 Reaproveita o gerador de datasets do benchmark.py do pacote da disciplina,
 para que os cenarios sejam exatamente os mesmos usados nos baselines.
@@ -16,6 +20,7 @@ import csv
 import math
 import os
 import random
+import statistics
 import time
 from collections import defaultdict
 
@@ -48,7 +53,7 @@ QUADRATIC = ("Bubble Sort", "Selection Sort", "Insertion Sort")
 
 SIZES = [10, 50, 100, 250, 500, 1000, 2000]
 DISTRIBUTIONS = ["random", "sorted", "reverse", "duplicates", "almost_sorted"]
-TRIALS = 3
+TRIALS = 5
 
 
 def run():
@@ -65,24 +70,32 @@ def run():
                 if n > 1000 and name in QUADRATIC and dist in ("random", "reverse"):
                     continue
 
-                t_acc = c_acc = m_acc = 0.0
+                samples = []
+                comp_samples = []
+                move_samples = []
                 for data, exp in zip(datasets, expected):
                     d = list(data)
                     t0 = time.perf_counter()
                     out, c, m = fn(d)
-                    t_acc += (time.perf_counter() - t0) * 1000.0
+                    samples.append((time.perf_counter() - t0) * 1000.0)
                     assert out == exp, "ERRO DE ORDENACAO em {} n={}".format(name, n)
-                    c_acc += c
-                    m_acc += m
+                    comp_samples.append(c)
+                    move_samples.append(m)
 
-                rec = {"time_ms": t_acc / TRIALS,
-                       "comps": c_acc / TRIALS,
-                       "moves": m_acc / TRIALS}
+                rec = {"time_ms": statistics.fmean(samples),
+                       "time_sd": statistics.stdev(samples),
+                       "comps": statistics.fmean(comp_samples),
+                       "comps_sd": statistics.stdev(comp_samples),
+                       "moves": statistics.fmean(move_samples),
+                       "moves_sd": statistics.stdev(move_samples)}
                 results[dist][name][n] = rec
                 rows.append({"distribuicao": dist, "algoritmo": name, "n": n,
                              "tempo_ms": round(rec["time_ms"], 4),
+                             "tempo_dp_ms": round(rec["time_sd"], 4),
                              "comparacoes": round(rec["comps"]),
-                             "movimentacoes": round(rec["moves"])})
+                             "comparacoes_dp": round(rec["comps_sd"], 1),
+                             "movimentacoes": round(rec["moves"]),
+                             "movimentacoes_dp": round(rec["moves_sd"], 1)})
             print("  N = {:>5} ok".format(n))
     return results, rows
 
@@ -110,12 +123,17 @@ def write_markdown(results):
     path = os.path.join(OUT_DIR, "benchmark_osj.md")
     with open(path, "w", encoding="utf-8") as f:
         f.write("# Resultados experimentais - OSJ vs. metodos classicos\n\n")
-        f.write("Media de {} repeticoes por celula. Tracos indicam medicoes "
-                "omitidas por custo proibitivo.\n\n".format(TRIALS))
+        f.write("Media de {} repeticoes por celula, acompanhada do desvio-padrao "
+                "amostral das repeticoes (media +/- dp) em todas as metricas: a "
+                "dispersao das comparacoes e das movimentacoes e que mede a "
+                "aleatoriedade da Fase 1, enquanto a do tempo mede sobretudo "
+                "ruido de maquina. Tracos indicam medicoes omitidas por custo "
+                "proibitivo.\n\n".format(TRIALS))
 
-        for metric, label, fmt in (("time_ms", "Tempo medio (ms)", "{:.3f}"),
-                                   ("comps", "Comparacoes", "{:,.0f}"),
-                                   ("moves", "Movimentacoes", "{:,.0f}")):
+        for metric, sd_key, label, fmt in (
+                ("time_ms", "time_sd", "Tempo medio (ms)", "{:.3f}"),
+                ("comps", "comps_sd", "Comparacoes", "{:,.0f}"),
+                ("moves", "moves_sd", "Movimentacoes", "{:,.0f}")):
             f.write("## {}\n\n".format(label))
             for dist in DISTRIBUTIONS:
                 f.write("### Distribuicao `{}`\n\n".format(dist))
@@ -124,10 +142,12 @@ def write_markdown(results):
                 for name in ALGORITHMS:
                     cells = []
                     for s in SIZES:
-                        if s in results[dist][name]:
-                            cells.append(fmt.format(results[dist][name][s][metric]))
-                        else:
+                        if s not in results[dist][name]:
                             cells.append("--")
+                            continue
+                        rec = results[dist][name][s]
+                        cells.append(fmt.format(rec[metric]) + " +/- "
+                                     + fmt.format(rec[sd_key]))
                     f.write("| {} | ".format(name) + " | ".join(cells) + " |\n")
                 f.write("\n")
 
@@ -173,36 +193,6 @@ def plot_metric(results, metric, ylabel, filename):
     return path
 
 
-def plot_scaling(results):
-    """OSJ isolado contra as curvas de referencia n log n, n^(5/3) e n^2."""
-    sm = results["random"]["OSJ"]
-    ns = sorted(sm)
-    ys = [sm[n]["comps"] for n in ns]
-    k = fit_exponent(ns, ys)
-
-    fig, ax = plt.subplots(figsize=(7, 5.5))
-    ax.plot(ns, ys, marker="o", linewidth=2.4, label="OSJ (medido)")
-
-    anchor = ys[-1]; n_last = ns[-1]
-    for expo, lbl in ((1.0, "n"), (5.0 / 3.0, "n^(5/3)"), (2.0, "n^2")):
-        ax.plot(ns, [anchor * (n / n_last) ** expo for n in ns],
-                linestyle="--", linewidth=1.1, alpha=0.7, label=lbl)
-    ax.plot(ns, [anchor * (n * math.log2(n)) / (n_last * math.log2(n_last)) for n in ns],
-            linestyle=":", linewidth=1.4, alpha=0.85, label="n log n")
-
-    ax.set_xscale("log"); ax.set_yscale("log")
-    ax.set_xlabel("N"); ax.set_ylabel("comparacoes")
-    ax.set_title("Escalabilidade do OSJ\nexpoente empirico = {:.3f}   |   "
-                 "expoente teorico = 5/3 = {:.3f}".format(k, 5.0 / 3.0))
-    ax.grid(True, which="both", linestyle="--", alpha=0.4)
-    ax.legend()
-    fig.tight_layout()
-    path = os.path.join(OUT_DIR, "escalabilidade_loglog.png")
-    fig.savefig(path, dpi=150)
-    plt.close(fig)
-    return path, k
-
-
 if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
     random.seed(42)
@@ -212,8 +202,6 @@ if __name__ == "__main__":
     print("Markdown ->", write_markdown(results))
     print("Grafico  ->", plot_metric(results, "time_ms", "tempo (ms)", "benchmark_tempo.png"))
     print("Grafico  ->", plot_metric(results, "comps", "comparacoes", "benchmark_comparacoes.png"))
-    p, k = plot_scaling(results)
-    print("Grafico  ->", p)
     print()
-    print("Expoente empirico do OSJ (comparacoes, random) = {:.4f}".format(k))
-    print("Expoente teorico previsto                      = {:.4f}".format(5.0 / 3.0))
+    print("O grafico de escalabilidade sai do scaling_osj.py, que mede ate "
+          "N = 10^4 - a faixa que o relatorio publica.")
