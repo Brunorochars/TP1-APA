@@ -3,8 +3,8 @@
 # =============================================================
 
 # docs/* (nao docs/): o git nao permite reincluir nada dentro de um
-# diretorio excluido. Os ADRs, a config do agente e os logs de grill sao
-# versionados; o Enunciado.md, nao.
+# diretorio excluido. Os ADRs, a config do agente, os logs de grill e a
+# apresentacao sao versionados; o Enunciado.md, nao.
 #
 # Os logs de grill sao versionados porque o relatorio os cita como evidencia
 # do item "Modificacoes realizadas" da declaracao de autoria (secao 8).
@@ -12,6 +12,7 @@ docs/*
 !docs/adr/
 !docs/agents/
 !docs/grills_logs/
+!docs/apresentacao/
 .claude
 claude.md
 
