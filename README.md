@@ -528,11 +528,11 @@ A aproximação melhora conforme `N` cresce, como esperado: os termos de ordem i
 | :--- | ---: | ---: |
 | Bubble Sort | 2,030 | 1,890 |
 | Selection Sort | 2,021 | 1,795 |
-| Insertion Sort | 1,959 | 1,822 |
+| Insertion Sort | 1,960 | 1,822 |
 | **OSJ** | **1,591** | **1,495** |
-| DPES (referência) | 1,339 | 1,168 |
-| Merge Sort | 1,270 | 1,118 |
-| Quick Sort | 1,184 | 1,096 |
+| DPES (referência) | 1,340 | 1,168 |
+| Merge Sort | 1,269 | 1,118 |
+| Quick Sort | 1,185 | 1,096 |
 
 **Comparações absolutas, distribuição aleatória:**
 
