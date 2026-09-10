@@ -499,7 +499,7 @@ Uma busca por métodos publicados que estimem posto por **comparação contra te
 **Por que os tetos de `N` são estes.** Os dois experimentos param em pontos diferentes, e por motivos diferentes.
 
 - **Comparativo, `N ≤ 2000`.** O teto é imposto pelos *baselines*, não pelo OSJ. Em `N = 2000` os três quadráticos já fazem da ordem de `2·10⁶` comparações por execução — nas distribuições `random` e `reverse` eles já são omitidos nesse ponto por custo proibitivo. Cada dobra de `N` multiplica esse custo por ~4 sem acrescentar informação: o regime quadrático já está inequívoco, com expoentes medidos de 2,03, 2,02 e 1,96 contra os 2,0 teóricos. Medir mais longe encareceria o experimento para reconfirmar um fato assentado.
-- **Escalabilidade, `N ≤ 10⁴`.** Aqui só o OSJ roda, e o limite é o custo dele próprio: uma execução em `N = 10⁴` leva ~4,8 s, isto é ~24 s só para as 5 repetições daquele ponto, e a dobra seguinte custaria ~3× isso. O teto é ainda assim suficiente para o que o experimento existe para responder — o ajuste já estabilizou em 1,641 contra os 1,667 previstos, e a distância remanescente é de termos de ordem inferior, não de expoente.
+- **Escalabilidade, `N ≤ 10⁴`.** Aqui só o OSJ roda, e o limite é o custo dele próprio: uma execução em `N = 10⁴` leva ~1,2 s, isto é ~6 s só para as 5 repetições daquele ponto, e a dobra seguinte custaria ~3× isso. O teto é ainda assim suficiente para o que o experimento existe para responder — o ajuste já estabilizou em 1,641 contra os 1,667 previstos, e a distância remanescente é de termos de ordem inferior, não de expoente.
 
 ### 6.2 Escalabilidade e verificação do expoente
 
@@ -525,13 +525,13 @@ A aproximação melhora conforme `N` cresce, como esperado: os termos de ordem i
 
 | Algoritmo | comparações | tempo |
 | :--- | ---: | ---: |
-| Bubble Sort | 2,030 | 2,028 |
-| Selection Sort | 2,021 | 1,922 |
-| Insertion Sort | 1,959 | 1,874 |
-| **OSJ** | **1,591** | **1,662** |
-| DPES (referência) | 1,339 | 1,258 |
-| Merge Sort | 1,270 | 1,178 |
-| Quick Sort | 1,184 | 1,191 |
+| Bubble Sort | 2,030 | 1,890 |
+| Selection Sort | 2,021 | 1,795 |
+| Insertion Sort | 1,959 | 1,822 |
+| **OSJ** | **1,591** | **1,495** |
+| DPES (referência) | 1,339 | 1,168 |
+| Merge Sort | 1,270 | 1,118 |
+| Quick Sort | 1,184 | 1,096 |
 
 **Comparações absolutas, distribuição aleatória:**
 
