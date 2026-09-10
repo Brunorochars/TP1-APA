@@ -512,8 +512,9 @@ Em escala log-log, `T(n) ~ c·n^k` vira uma reta de inclinação `k`. A curva me
 | Previsto pela análise | **1,667** |
 | Medido (comparações, `N` até 2000) | **1,591** |
 | Medido (comparações, `N` até 10⁴) | **1,641** |
+| Medido (tempo, `N` até 10⁴) | **1,678** |
 
-A aproximação melhora conforme `N` cresce, como esperado: os termos de ordem inferior perdem peso relativo.
+A aproximação melhora conforme `N` cresce, como esperado: os termos de ordem inferior perdem peso relativo. O expoente do tempo corrobora a dedução por um eixo independente das contagens — ele responde ao custo real das operações, não à convenção que as conta —, e é o único dos três sensível às condições da máquina: é a métrica cuja dispersão a §6.1 atribui a ruído de ambiente.
 
 ### 6.3 Comparação com os métodos clássicos
 
