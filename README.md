@@ -1,7 +1,7 @@
 # OSJ — Ordenação por Sondagem e Janelas
 
 **Trabalho Prático 1 — Análise e Projeto de Algoritmos**
-Aluno: Bruno da Silva Rocha
+Alunos: Bruno da Silva Rocha · Pietro M. Prauchner
 
 ---
 
@@ -598,29 +598,29 @@ Como parceiro de discussão técnica para a concepção do mecanismo, para orien
 
 ### Como foi utilizada
 
-| Etapa | Papel da ferramenta | Papel do aluno |
+| Etapa | Papel da ferramenta | Papel dos alunos |
 | :--- | :--- | :--- |
-| Concepção | Apresentou cinco direções candidatas de mecanismo autoral, com análise de viabilidade e risco de originalidade de cada uma | Escolheu a direção (combinação de sondagem amostral com reparo por janelas deslizantes) |
-| Prova de término | Conduziu por método socrático: formulou as perguntas, apontou os erros, forneceu contraexemplos; ao final redigiu a prova completa após o aluno ter estabelecido a intuição central | Identificou por conta própria a separação de responsabilidades entre as fases e a observação de que os elementos não movidos preservam suas relações — as duas peças conceituais da prova |
-| Contraexemplo do passo `w` | Construiu o vetor `[3,4,1,2]` e o rastro de execução | Solicitou a construção |
-| Implementação | Escreveu `osj.py`, `test_osj.py`, `benchmark_osj.py`, `scaling_osj.py` e `exemplo_didatico.py` | Definiu o destino dos arquivos e ratificou as decisões de projeto |
+| Concepção | Apresentou cinco direções candidatas de mecanismo autoral, com análise de viabilidade e risco de originalidade de cada uma | Escolheram a direção (combinação de sondagem amostral com reparo por janelas deslizantes) |
+| Prova de término | Conduziu por método socrático: formulou as perguntas, apontou os erros, forneceu contraexemplos; ao final redigiu a prova completa após os alunos terem estabelecido a intuição central | Identificaram por conta própria a separação de responsabilidades entre as fases e a observação de que os elementos não movidos preservam suas relações — as duas peças conceituais da prova |
+| Contraexemplo do passo `w` | Construiu o vetor `[3,4,1,2]` e o rastro de execução | Solicitaram a construção |
+| Implementação | Escreveu `osj.py`, `test_osj.py`, `benchmark_osj.py`, `scaling_osj.py` e `exemplo_didatico.py` | Definiram o destino dos arquivos e ratificaram as decisões de projeto |
 | Análise assintótica | Deduziu a aplicação de Hoeffding, a passagem do erro de estimativa ao deslocamento e a otimização de `s` | — |
 | Experimentos | Projetou e executou os benchmarks, investigou a anomalia da variante estável e identificou sua relação com o Sample Sort | — |
 | Redação | Redigiu este README | — |
 
 ### Modificações realizadas
 
-O material produzido pela ferramenta foi submetido a uma sessão de revisão crítica conduzida pelo aluno em 09/09/2026, confrontando a entrega item a item contra o enunciado. Cada pergunta e cada decisão estão registradas, com data, em [`docs/grills_logs/conformidade-com-o-enunciado.md`](docs/grills_logs/conformidade-com-o-enunciado.md). As decisões tomadas ali sobre o material:
+O material produzido pela ferramenta foi submetido a uma sessão de revisão crítica conduzida pelos alunos em 09/09/2026, confrontando a entrega item a item contra o enunciado. Cada pergunta e cada decisão estão registradas, com data, em [`docs/grills_logs/conformidade-com-o-enunciado.md`](docs/grills_logs/conformidade-com-o-enunciado.md). As decisões tomadas ali sobre o material:
 
-| Decisão do aluno | Efeito sobre o material |
+| Decisão dos alunos | Efeito sobre o material |
 | :--- | :--- |
 | **Escala dos experimentos** — estender a verificação do expoente até `N = 10⁴`, mantendo o benchmark comparativo em `N = 2000` e declarando o motivo do teto, em vez de omitir a faixa ou de rodar tudo em 10⁴ | §6.1 e §6.2; `scaling_osj.py` |
 | **Repetições estatísticas** — elevar de 3 para 5 repetições e passar a registrar o desvio-padrão das três métricas, que antes não era reportado; o das comparações e movimentações é o que mede a aleatoriedade da Sondagem | §6.1; `benchmark_osj.py` |
 | **Recusa do port em C/C++** — decisão fundamentada de não portar o algoritmo: a comparação mediria o fator constante do interpretador, eixo que o enunciado desvaloriza, ao custo de duplicar a superfície de risco de incorretude. O conteúdo intelectual do port entrou como a observação de que contagens de operações são invariantes da linguagem e o tempo absoluto não | §6.1 |
-| **Lema do avanço** — a afirmação de que cada varredura reduz o deslocamento máximo em `w/2` sustentava toda a análise sem estar provada. Determinou promovê-la a lema com prova e verificação empírica, explicitando que ela depende da sobreposição das janelas **e** da ordem crescente da varredura | §4.2; `test_osj.py`; `CONTEXT.md` (termo *avanço*) |
-| **Derivação do pior caso** — identificado que a justificativa do `O(n²)` estava incorreta (o corolário citado limita trocas, não comparações) e que, sem o lema do avanço, o limite derivável seria `O(n³)`. Determinou derivar o pior caso explicitamente | §4.3 e §4.4; §5.2 |
-| **Regimes probabilísticos** — separar a esperança (deslocamento típico) da alta probabilidade (Hoeffding, com o fator `(log n)^{1/3}`), que estavam misturados, e conectar o `Θ` à sua cota inferior incondicional. Optou pela reivindicação forte: `E[T] = Θ(n^{5/3})` para **toda** entrada, e não a média clássica sobre entradas aleatórias | §4 (abertura) e §4.4 |
-| **Declaração de autoria** — determinou preencher este item e remover o aviso de seção provisória que encabeçava a §8, mantendo deliberadamente a tabela "Como foi utilizada" sem inflar o papel do aluno | §8 |
+| **Lema do avanço** — a afirmação de que cada varredura reduz o deslocamento máximo em `w/2` sustentava toda a análise sem estar provada. Determinaram promovê-la a lema com prova e verificação empírica, explicitando que ela depende da sobreposição das janelas **e** da ordem crescente da varredura | §4.2; `test_osj.py`; `CONTEXT.md` (termo *avanço*) |
+| **Derivação do pior caso** — identificado que a justificativa do `O(n²)` estava incorreta (o corolário citado limita trocas, não comparações) e que, sem o lema do avanço, o limite derivável seria `O(n³)`. Determinaram derivar o pior caso explicitamente | §4.3 e §4.4; §5.2 |
+| **Regimes probabilísticos** — separar a esperança (deslocamento típico) da alta probabilidade (Hoeffding, com o fator `(log n)^{1/3}`), que estavam misturados, e conectar o `Θ` à sua cota inferior incondicional. Optaram pela reivindicação forte: `E[T] = Θ(n^{5/3})` para **toda** entrada, e não a média clássica sobre entradas aleatórias | §4 (abertura) e §4.4 |
+| **Declaração de autoria** — determinaram preencher este item e remover o aviso de seção provisória que encabeçava a §8, mantendo deliberadamente a tabela "Como foi utilizada" sem inflar o papel dos alunos | §8 |
 
 Nenhuma reescrita cosmética foi feita sobre o texto da ferramenta: as alterações acima são de conteúdo, e cada uma delas tem a pergunta que a originou no log citado.
 
