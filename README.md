@@ -27,7 +27,7 @@ cd python
 uv run python test_osj.py -v         # suíte completa: 44 testes
 uv run python student_template.py    # interface exigida pelo enunciado
 uv run python exemplo_didatico.py    # exemplo numérico passo a passo
-uv run python scaling_osj.py         # medição do expoente de escalabilidade
+uv run python scaling_osj.py         # escalabilidade: expoente + gráfico log-log
 uv run python benchmark_osj.py       # benchmark completo + gráficos em ../resultados/
 ```
 
@@ -492,14 +492,14 @@ Uma busca por métodos publicados que estimem posto por **comparação contra te
 
 - 8 algoritmos × 5 distribuições × 7 tamanhos × **5 repetições**, com verificação de ordenação em **todas** as execuções.
 - Distribuições: `random`, `sorted`, `reverse`, `duplicates`, `almost_sorted`, geradas pelo `generate_dataset` do próprio pacote da disciplina, de modo que os baselines enfrentem exatamente os mesmos vetores.
-- Métricas: tempo, comparações e movimentações, sob a mesma convenção de contagem de `classical.py`. O tempo é publicado como **média ± desvio-padrão amostral** das 5 repetições; comparações e movimentações são médias, e sua dispersão é de outra natureza — não dependem da carga da máquina, só do sorteio da Sondagem.
+- Métricas: tempo, comparações e movimentações, sob a mesma convenção de contagem de `classical.py`. As três são publicadas como **média ± desvio-padrão amostral** das 5 repetições, mas as dispersões medem coisas diferentes: a do tempo é sobretudo ruído de máquina, enquanto a das comparações e das movimentações mede a aleatoriedade da Sondagem — e é esta que interessa à análise da §4, por ser a única que o algoritmo produz.
 - Semente fixa (`random.seed(42)`) em ambos os experimentos, e ambiente fixado pelo `uv.lock`: os números citados aqui se reproduzem.
-- Dados brutos em [`resultados/benchmark_osj.csv`](resultados/benchmark_osj.csv); tabelas completas em [`resultados/benchmark_osj.md`](resultados/benchmark_osj.md).
+- Dados brutos em [`resultados/benchmark_osj.csv`](resultados/benchmark_osj.csv); tabelas completas em [`resultados/benchmark_osj.md`](resultados/benchmark_osj.md). Os pontos da escalabilidade e os expoentes ajustados ficam em [`resultados/escalabilidade_osj.csv`](resultados/escalabilidade_osj.csv).
 
 **Por que os tetos de `N` são estes.** Os dois experimentos param em pontos diferentes, e por motivos diferentes.
 
 - **Comparativo, `N ≤ 2000`.** O teto é imposto pelos *baselines*, não pelo OSJ. Em `N = 2000` os três quadráticos já fazem da ordem de `2·10⁶` comparações por execução — nas distribuições `random` e `reverse` eles já são omitidos nesse ponto por custo proibitivo. Cada dobra de `N` multiplica esse custo por ~4 sem acrescentar informação: o regime quadrático já está inequívoco, com expoentes medidos de 2,03, 2,02 e 1,96 contra os 2,0 teóricos. Medir mais longe encareceria o experimento para reconfirmar um fato assentado.
-- **Escalabilidade, `N ≤ 10⁴`.** Aqui só o OSJ roda, e o limite é o custo dele próprio: uma execução em `N = 10⁴` leva ~5,0 s, isto é ~25 s só para as 5 repetições daquele ponto, e a dobra seguinte custaria ~3× isso. O teto é ainda assim suficiente para o que o experimento existe para responder — o ajuste já estabilizou em 1,641 contra os 1,667 previstos, e a distância remanescente é de termos de ordem inferior, não de expoente.
+- **Escalabilidade, `N ≤ 10⁴`.** Aqui só o OSJ roda, e o limite é o custo dele próprio: uma execução em `N = 10⁴` leva ~4,8 s, isto é ~24 s só para as 5 repetições daquele ponto, e a dobra seguinte custaria ~3× isso. O teto é ainda assim suficiente para o que o experimento existe para responder — o ajuste já estabilizou em 1,641 contra os 1,667 previstos, e a distância remanescente é de termos de ordem inferior, não de expoente.
 
 ### 6.2 Escalabilidade e verificação do expoente
 
@@ -525,13 +525,13 @@ A aproximação melhora conforme `N` cresce, como esperado: os termos de ordem i
 
 | Algoritmo | comparações | tempo |
 | :--- | ---: | ---: |
-| Bubble Sort | 2,030 | 1,862 |
-| Selection Sort | 2,021 | 1,697 |
-| Insertion Sort | 1,960 | 1,725 |
-| **OSJ** | **1,591** | **1,411** |
-| DPES (referência) | 1,340 | 1,100 |
-| Merge Sort | 1,269 | 1,047 |
-| Quick Sort | 1,185 | 0,984 |
+| Bubble Sort | 2,030 | 2,028 |
+| Selection Sort | 2,021 | 1,922 |
+| Insertion Sort | 1,959 | 1,874 |
+| **OSJ** | **1,591** | **1,662** |
+| DPES (referência) | 1,339 | 1,258 |
+| Merge Sort | 1,270 | 1,178 |
+| Quick Sort | 1,184 | 1,191 |
 
 **Comparações absolutas, distribuição aleatória:**
 
@@ -614,7 +614,7 @@ O material produzido pela ferramenta foi submetido a uma sessão de revisão cr�
 | Decisão do aluno | Efeito sobre o material |
 | :--- | :--- |
 | **Escala dos experimentos** — estender a verificação do expoente até `N = 10⁴`, mantendo o benchmark comparativo em `N = 2000` e declarando o motivo do teto, em vez de omitir a faixa ou de rodar tudo em 10⁴ | §6.1 e §6.2; `scaling_osj.py` |
-| **Repetições estatísticas** — elevar de 3 para 5 repetições e passar a registrar o desvio-padrão do tempo, que antes não era reportado | §6.1; `benchmark_osj.py` |
+| **Repetições estatísticas** — elevar de 3 para 5 repetições e passar a registrar o desvio-padrão das três métricas, que antes não era reportado; o das comparações e movimentações é o que mede a aleatoriedade da Sondagem | §6.1; `benchmark_osj.py` |
 | **Recusa do port em C/C++** — decisão fundamentada de não portar o algoritmo: a comparação mediria o fator constante do interpretador, eixo que o enunciado desvaloriza, ao custo de duplicar a superfície de risco de incorretude. O conteúdo intelectual do port entrou como a observação de que contagens de operações são invariantes da linguagem e o tempo absoluto não | §6.1 |
 | **Lema do avanço** — a afirmação de que cada varredura reduz o deslocamento máximo em `w/2` sustentava toda a análise sem estar provada. Determinou promovê-la a lema com prova e verificação empírica, explicitando que ela depende da sobreposição das janelas **e** da ordem crescente da varredura | §4.2; `test_osj.py`; `CONTEXT.md` (termo *avanço*) |
 | **Derivação do pior caso** — identificado que a justificativa do `O(n²)` estava incorreta (o corolário citado limita trocas, não comparações) e que, sem o lema do avanço, o limite derivável seria `O(n³)`. Determinou derivar o pior caso explicitamente | §4.3 e §4.4; §5.2 |
@@ -652,7 +652,7 @@ TP1-APA/
 │   ├── osj.py                   ← algoritmo autoral (implementação e documentação)
 │   ├── test_osj.py              ← suíte de 44 testes
 │   ├── benchmark_osj.py         ← benchmark comparativo e geração de gráficos
-│   ├── scaling_osj.py           ← medição do expoente de escalabilidade
+│   ├── scaling_osj.py           ← escalabilidade: expoente e gráfico log-log
 │   ├── exemplo_didatico.py      ← exemplo numérico passo a passo
 │   ├── student_template.py      ← interface exigida pelo enunciado
 │   ├── classical.py             baselines fornecidos pela disciplina
@@ -664,5 +664,6 @@ TP1-APA/
     ├── benchmark_osj.md         tabelas completas
     ├── benchmark_tempo.png
     ├── benchmark_comparacoes.png
+    ├── escalabilidade_osj.csv   pontos e expoentes da escalabilidade
     └── escalabilidade_loglog.png
 ```
