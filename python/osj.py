@@ -51,7 +51,7 @@ CONVENCAO DE CONTAGEM
     deslocamentos de uma casa, que sao as trocas de vizinhos da prova de
     termino, e serve para verificar experimentalmente o limite n(n-1)/2.
 
-Autor: Bruno da Silva Rocha
+Autores: Bruno da Silva Rocha, Pietro M. Prauchner
 Disciplina: Analise e Projeto de Algoritmos - TP1
 """
 
