@@ -1,7 +1,7 @@
 """
 TRABALHO PRATICO 1 (TP1)
 Disciplina: Analise e Projetos de Algoritmos (APA)
-Aluno: Bruno da Silva Rocha
+Alunos: Bruno da Silva Rocha, Pietro M. Prauchner
 
 Algoritmo autoral: OSJ - Ordenacao por Sondagem e Janelas.
 A implementacao, a documentacao do raciocinio projetual e a prova de termino
@@ -16,7 +16,7 @@ Resumo do metodo:
                        sem movimentacao. Esta fase sozinha ordena qualquer
                        entrada: e nela que mora toda a corretude.
 
-Execute test_osj.py para a suite completa (42 testes).
+Execute test_osj.py para a suite completa (44 testes).
 """
 
 from typing import Any, List, Tuple
