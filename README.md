@@ -607,6 +607,7 @@ Como parceiro de discussão técnica para a concepção do mecanismo, para orien
 | Análise assintótica | Deduziu a aplicação de Hoeffding, a passagem do erro de estimativa ao deslocamento e a otimização de `s` | — |
 | Experimentos | Projetou e executou os benchmarks, investigou a anomalia da variante estável e identificou sua relação com o Sample Sort | — |
 | Redação | Redigiu este README | — |
+| Apresentação | Redigiu os roteiros e montou os slides da defesa oral (`docs/apresentacao/`) a partir deste relatório | Definiram a divisão entre apresentadores e revisaram a fala |
 
 ### Modificações realizadas
 
