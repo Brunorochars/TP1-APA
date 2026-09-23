@@ -1,0 +1,18 @@
+[project]
+name = "tp1-apa"
+version = "1.0.0"
+description = "OSJ - Ordenacao por Sondagem e Janelas: metodo de ordenacao autoral (TP1 de APA)"
+requires-python = ">=3.11"
+
+# matplotlib e usada apenas pelos scripts de grafico (benchmark.py fornecido pela
+# disciplina e benchmark_osj.py). O algoritmo em python/osj.py e stdlib-puro e
+# deve continuar sendo: precisa rodar em qualquer Python 3.11 limpo.
+dependencies = [
+    "matplotlib>=3.8",
+]
+
+[tool.uv]
+# O repositorio e uma pasta plana de scripts (python/), nao um pacote
+# instalavel: os imports entre modulos sao planos e o student_template.py e
+# executado diretamente. Sem isso, o uv tentaria construir um wheel.
+package = false

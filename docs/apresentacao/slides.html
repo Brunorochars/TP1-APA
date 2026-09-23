@@ -1,0 +1,1776 @@
+<title>Ordenação por Sondagem e Janelas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  /* Tema claro único e deliberado: o deck é projetado em sala, onde
+     contraste alto sobre fundo claro é o que sobrevive ao projetor.
+
+     Regra de legibilidade deste arquivo: nenhum tamanho de fonte tem piso
+     abaixo de 14px, e o conteúdo de cada slide é orçado para caber em
+     escala 1,0 — o auto-ajuste do script é rede de segurança, não o
+     mecanismo normal de encaixe. Foi o que produzia texto ilegível antes. */
+  :root {
+    --paper:      #F1F3F6;
+    --panel:      #FFFFFF;
+    --ink:        #0D1116;
+    --ink-2:      #2E3741;
+    --ink-3:      #55606C;
+    --rule:       #C6CDD6;
+    --grid:       #E2E6EB;
+    --ph1:        #8A5310;
+    --ph1-soft:   #FAF0DE;
+    --ph2:        #0D574C;
+    --ph2-soft:   #DCEEEA;
+    --wrong:      #8F281B;
+    --wrong-soft: #FAE3DF;
+
+    --f-display: "Spectral", Georgia, "Times New Roman", serif;
+    --f-body:    "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --f-mono:    "JetBrains Mono", "Consolas", ui-monospace, monospace;
+
+    --figmax: 42vh;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 18px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Estrutura do deck ─────────────────────────────────────── */
+
+  #deck {
+    height: 100svh;
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    background-image:
+      linear-gradient(to right, var(--grid) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+  @media (prefers-reduced-motion: reduce) { #deck { scroll-behavior: auto; } }
+
+  .slide {
+    scroll-snap-align: start;
+    height: 100svh;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    padding: 34px 34px 58px;
+  }
+  .inner {
+    width: 100%;
+    max-width: 1560px;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(14px, 1.7vh, 28px);
+    transform-origin: center center;
+  }
+
+  /* ── Escala tipográfica ────────────────────────────────────── */
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: clamp(14px, 1vw, 19px);
+    font-weight: 500;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .eyebrow b { color: var(--ink-2); font-weight: 700; }
+
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2.7rem, 5.6vw, 5.6rem);
+    line-height: 1.01;
+    letter-spacing: -0.022em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(1.95rem, 3.7vw, 3.4rem);
+    line-height: 1.07;
+    letter-spacing: -0.016em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--f-body);
+    font-weight: 700;
+    font-size: clamp(1.05rem, 1.16vw, 1.4rem);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin: 0;
+  }
+  p {
+    margin: 0;
+    max-width: 62ch;
+    color: var(--ink-2);
+    font-size: clamp(1.15rem, 1.34vw, 1.62rem);
+  }
+  p.lead {
+    font-family: var(--f-display);
+    font-size: clamp(1.45rem, 2.25vw, 2.25rem);
+    line-height: 1.36;
+    color: var(--ink);
+    max-width: 44ch;
+  }
+  strong { color: var(--ink); font-weight: 700; }
+  em { font-style: italic; }
+  sup { font-size: 0.7em; }
+
+  .mono { font-family: var(--f-mono); font-size: 0.95em; }
+  .q1 { color: var(--ph1); }
+  .q2 { color: var(--ph2); }
+  .qx { color: var(--wrong); }
+
+  ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 11px; }
+  li {
+    color: var(--ink-2);
+    max-width: 58ch;
+    font-size: clamp(1.12rem, 1.3vw, 1.55rem);
+  }
+  li::marker { color: var(--ink-3); }
+
+  /* ── Componentes ───────────────────────────────────────────── */
+
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: clamp(20px, 2.2vw, 40px);
+    align-items: start;
+  }
+  .cols.four { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+
+  /* Figura e leitura lado a lado: a altura do slide passa a ser o máximo
+     dos dois, não a soma. É o que impede os slides de gráfico de estourar. */
+  .split {
+    display: grid;
+    grid-template-columns: 1.42fr 1fr;
+    gap: clamp(22px, 2.6vw, 46px);
+    align-items: center;
+  }
+  .split.even { grid-template-columns: 1fr 1fr; align-items: start; }
+  @media (max-width: 1000px) { .split, .split.even { grid-template-columns: 1fr; } }
+
+  .stack { display: flex; flex-direction: column; gap: clamp(12px, 1.4vh, 20px); }
+
+  .claim {
+    font-family: var(--f-display);
+    font-size: clamp(1.35rem, 2.05vw, 2.05rem);
+    line-height: 1.3;
+    color: var(--ink);
+    border-left: 5px solid var(--ph2);
+    padding: 3px 0 3px 22px;
+    max-width: 50ch;
+  }
+  .claim.warn { border-left-color: var(--ph1); }
+  .claim.bad  { border-left-color: var(--wrong); }
+
+  .phase {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-top: 5px solid var(--rule);
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .phase.one { border-top-color: var(--ph1); }
+  .phase.two { border-top-color: var(--ph2); }
+  .phase .tag {
+    font-family: var(--f-mono);
+    font-size: clamp(0.86rem, 0.92vw, 1.08rem);
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ink-3);
+  }
+  .phase.one .tag { color: var(--ph1); }
+  .phase.two .tag { color: var(--ph2); }
+  .phase .name {
+    font-family: var(--f-display);
+    font-size: clamp(1.25rem, 1.6vw, 1.75rem);
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .phase p { font-size: clamp(1.05rem, 1.2vw, 1.42rem); max-width: none; }
+
+  pre {
+    font-family: var(--f-mono);
+    font-size: clamp(0.95rem, 1.08vw, 1.32rem);
+    line-height: 1.55;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    margin: 0;
+    padding: 16px 20px;
+    overflow-x: auto;
+    white-space: pre;
+    tab-size: 2;
+  }
+  pre .c { color: var(--ink-3); }
+  pre .k { color: var(--ph2); font-weight: 500; }
+  pre .h { color: var(--ph1); font-weight: 700; }
+
+  .tw { overflow-x: auto; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: clamp(1.02rem, 1.18vw, 1.42rem);
+    min-width: 420px;
+  }
+  th, td {
+    text-align: left;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--rule);
+  }
+  th {
+    font-family: var(--f-mono);
+    font-size: clamp(0.9rem, 0.96vw, 1.16rem);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+    border-bottom: 2px solid var(--ink-3);
+    white-space: nowrap;
+  }
+  td { color: var(--ink-2); }
+  td.n, th.n { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+  tr.me td { color: var(--ink); font-weight: 700; background: var(--ph2-soft); }
+  tr.me td:first-child { color: var(--ph2); }
+  td.g { color: var(--ph2); font-family: var(--f-mono); font-weight: 500; }
+
+  figure { margin: 0; display: flex; flex-direction: column; gap: 11px; min-width: 0; }
+  figure svg {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: var(--figmax);
+    display: block;
+    color: var(--ink);
+  }
+  figure.fig-mid { max-width: 1080px; align-self: center; width: 100%; }
+  figcaption {
+    font-size: clamp(1rem, 1.1vw, 1.28rem);
+    color: var(--ink-3);
+    max-width: 66ch;
+  }
+
+  .stats { display: flex; flex-wrap: wrap; gap: clamp(16px, 2vh, 30px) clamp(30px, 3.2vw, 58px); }
+  .stats.col { flex-direction: column; flex-wrap: nowrap; gap: clamp(14px, 1.9vh, 26px); }
+  .stat { display: flex; flex-direction: column; gap: 3px; }
+  .stat .v {
+    font-family: var(--f-mono);
+    font-size: clamp(2rem, 3.2vw, 3.5rem);
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .stat .l {
+    font-family: var(--f-mono);
+    font-size: clamp(0.84rem, 0.94vw, 1.12rem);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .stat.a1 .v { color: var(--ph1); }
+  .stat.a2 .v { color: var(--ph2); }
+
+  .byline {
+    font-family: var(--f-mono);
+    font-size: clamp(1rem, 1.12vw, 1.3rem);
+    color: var(--ink-2);
+    letter-spacing: 0.02em;
+  }
+  .byline span { color: var(--ink-3); }
+
+  /* ── Notas do apresentador ─────────────────────────────────── */
+
+  .notes {
+    border-top: 2px dashed var(--ph2);
+    background: var(--ph2-soft);
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .notes b {
+    font-family: var(--f-mono);
+    font-size: clamp(0.85rem, 0.9vw, 1.05rem);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ph2);
+  }
+  .notes p {
+    max-width: 100ch;
+    font-size: clamp(1rem, 1.06vw, 1.22rem);
+    color: var(--ink-2);
+  }
+  .notes[hidden] { display: none !important; }
+
+  /* ── Barra ─────────────────────────────────────────────────── */
+
+  #bar {
+    position: fixed;
+    inset: auto 0 0 0;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 0 18px;
+    background: rgba(241, 243, 246, 0.94);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--rule);
+    z-index: 10;
+    transition: opacity 0.2s;
+  }
+  #rail { flex: 1; height: 3px; background: var(--rule); position: relative; }
+  #fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ph2); }
+  #count {
+    font-family: var(--f-mono);
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
+  }
+  #count b { color: var(--ink); }
+  .btn {
+    font-family: var(--f-mono);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: var(--panel);
+    color: var(--ink-2);
+    border: 1px solid var(--rule);
+    padding: 6px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover { color: var(--ink); border-color: var(--ink-3); }
+  .btn[aria-pressed="true"] { color: var(--ph2); border-color: var(--ph2); background: var(--ph2-soft); }
+  .btn:focus-visible, #deck:focus-visible { outline: 3px solid var(--ph2); outline-offset: 2px; }
+  .btn kbd { font: inherit; color: var(--ink-3); margin-left: 6px; }
+
+  body.fs #bar { height: 30px; opacity: 0.3; }
+  body.fs #bar:hover, body.fs #bar:focus-within { opacity: 1; }
+
+  /* ── Telas estreitas: vira documento, sem escala nem snap ──── */
+  @media (max-width: 760px) {
+    .slide {
+      height: auto;
+      min-height: 0;
+      overflow: visible;
+      padding: 40px 18px;
+      border-bottom: 1px solid var(--rule);
+      display: block;
+    }
+    .inner { transform: none !important; max-width: none; }
+    #deck { scroll-snap-type: none; }
+    figure svg { max-height: none; }
+    table { min-width: 340px; }
+  }
+</style>
+
+<main id="deck" tabindex="-1">
+
+<!-- 1 ─────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><span>Trabalho Prático 1</span><span>·</span><span>Análise e Projeto de Algoritmos</span></div>
+    <h1>Ordenação por<br>Sondagem e Janelas</h1>
+    <p class="lead">Duas fases, onde a fase que <em>pode</em> errar nunca é a fase que
+      decide a corretude.</p>
+    <div class="stats">
+      <div class="stat a2"><span class="v">Θ(n<sup>5/3</sup>)</span><span class="l">custo esperado</span></div>
+      <div class="stat"><span class="v">1,64</span><span class="l">expoente medido</span></div>
+      <div class="stat"><span class="v">44/44</span><span class="l">testes aprovados</span></div>
+    </div>
+    <p class="byline">Bruno da Silva Rocha &nbsp;·&nbsp; Pietro M. Prauchner
+      <span>&nbsp;&nbsp;|&nbsp;&nbsp; setembro de 2026</span></p>
+    <div class="notes" hidden>
+      <b>Abertura · 40s</b>
+      <p>“O método se chama OSJ, Ordenação por Sondagem e Janelas. Tem duas fases, e a ideia
+      central do projeto está na relação entre elas: a primeira é aleatorizada e <em>pode
+      errar</em>; a segunda é determinística e é a única responsável pela corretude. Isso nos
+      deixa usar uma heurística agressiva sem nenhum risco de saída errada.”</p>
+      <p>Não adiantar números aqui. O 5/3 é do slide 11.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 2 ─────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§1.1</b><span>Concepção</span></div>
+    <h2>A pergunta que originou o método</h2>
+    <div class="split even">
+      <div class="stack">
+        <p>Nos métodos clássicos, a informação sobre <em>onde este elemento deve ficar</em> é
+        construída por contato direto: o Insertion desliza cada elemento até o lugar, o
+        Selection varre o resto do vetor.</p>
+        <p class="claim">E se cada elemento pudesse <strong>estimar</strong> sua posição final
+        por amostragem, sem falar com todo mundo?</p>
+      </div>
+      <div class="stack">
+        <h3>A metáfora: boca de urna</h3>
+        <p>Para saber sua colocação exata entre mil pessoas, você compararia-se com as 999
+        restantes. Mas se perguntar a <strong>quarenta sorteadas</strong> quantas são menores
+        que você, e trinta disserem que sim, você conclui que está por volta do percentil 75 —
+        e vai direto para lá.</p>
+        <p>Custa 40 perguntas em vez de 999, e o erro é <strong>quantificável</strong>. Daí a
+        Fase 1 — e daí o problema: o vetor fica <em>quase</em> ordenado, não ordenado.</p>
+      </div>
+    </div>
+    <div class="notes" hidden>
+      <b>Intuição · 1min30</b>
+      <p>Contar a metáfora antes de qualquer notação. Se a plateia entender “pesquisa de boca
+      de urna”, a Fase 1 já está entendida.</p>
+      <p>Terminar exatamente na frase “fica quase ordenado, não ordenado” — é o gancho que abre
+      o próximo slide. Não resolver o problema aqui.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 3 ─────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§1.3</b><span>A separação de responsabilidades</span></div>
+    <h2>Duas fases, duas responsabilidades disjuntas</h2>
+
+    <figure>
+      <svg viewBox="0 0 760 252" role="img" aria-label="A entrada passa pela Fase 1 de Sondagem, que é heurística e pode errar, produzindo um vetor quase ordenado; esse vetor passa pela Fase 2 Sanfona, determinística, que itera até o ponto fixo e devolve o vetor ordenado. A corretude reside apenas na Fase 2.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <rect x="6" y="70" width="86" height="54" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="49" y="94" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="17" font-weight="700" fill="currentColor">A</text>
+        <text x="49" y="112" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--ink-3)">n elem.</text>
+
+        <line x1="94" y1="97" x2="134" y2="97" stroke="currentColor" stroke-width="1.6" marker-end="url(#ar)"/>
+
+        <rect x="140" y="44" width="204" height="106" fill="none" stroke="var(--ph1)" stroke-width="1.8"/>
+        <rect x="140" y="44" width="204" height="5" fill="var(--ph1)"/>
+        <text x="156" y="72" font-family="JetBrains Mono, monospace" font-size="13" letter-spacing="1.2" font-weight="700" fill="var(--ph1)">FASE 1 · SONDAGEM</text>
+        <text x="156" y="97" font-family="Spectral, serif" font-size="17" fill="currentColor">heurística, aleatória</text>
+        <text x="156" y="119" font-family="Source Sans 3, sans-serif" font-size="14" fill="var(--ink-2)">s testemunhas por elemento</text>
+        <text x="156" y="140" font-family="JetBrains Mono, monospace" font-size="15" font-weight="700" fill="var(--ph1)">Θ(n·s)</text>
+
+        <line x1="346" y1="97" x2="402" y2="97" stroke="currentColor" stroke-width="1.6" marker-end="url(#ar)"/>
+        <text x="374" y="86" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--ink-3)">quase</text>
+        <text x="374" y="115" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--ink-3)">ordenado</text>
+
+        <rect x="408" y="44" width="226" height="106" fill="none" stroke="var(--ph2)" stroke-width="1.8"/>
+        <rect x="408" y="44" width="226" height="5" fill="var(--ph2)"/>
+        <text x="424" y="72" font-family="JetBrains Mono, monospace" font-size="13" letter-spacing="1.2" font-weight="700" fill="var(--ph2)">FASE 2 · SANFONA</text>
+        <text x="424" y="97" font-family="Spectral, serif" font-size="17" fill="currentColor">determinística</text>
+        <text x="424" y="119" font-family="Source Sans 3, sans-serif" font-size="14" fill="var(--ink-2)">janela w, passo w/2</text>
+        <text x="424" y="140" font-family="JetBrains Mono, monospace" font-size="15" font-weight="700" fill="var(--ph2)">até o ponto fixo</text>
+
+        <path d="M521,44 C521,18 638,18 638,44" fill="none" stroke="var(--ph2)" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+        <text x="580" y="13" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--ph2)">repete até nada mover</text>
+
+        <line x1="636" y1="97" x2="672" y2="97" stroke="currentColor" stroke-width="1.6" marker-end="url(#ar)"/>
+        <rect x="678" y="70" width="76" height="54" fill="none" stroke="var(--ph2)" stroke-width="1.8"/>
+        <text x="716" y="103" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="var(--ph2)">ordenado</text>
+
+        <line x1="242" y1="152" x2="242" y2="182" stroke="var(--ph1)" stroke-width="1.4"/>
+        <text x="242" y="205" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-size="17" font-weight="700" fill="var(--ph1)">pode errar</text>
+        <text x="242" y="228" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-size="14" fill="var(--ink-2)">responde só por desempenho</text>
+        <text x="242" y="246" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-size="14" fill="var(--ink-2)">errar sai caro, não sai errado</text>
+
+        <line x1="521" y1="152" x2="521" y2="182" stroke="var(--ph2)" stroke-width="1.4"/>
+        <text x="521" y="205" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-size="17" font-weight="700" fill="var(--ph2)">não pode errar</text>
+        <text x="521" y="228" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-size="14" fill="var(--ink-2)">a corretude mora aqui, inteira</text>
+        <text x="521" y="246" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-size="14" fill="var(--ink-2)">ordena qualquer entrada sozinha</text>
+      </svg>
+    </figure>
+
+    <p class="claim">A tese do projeto: <strong>a Fase 1 não pode errar de modo fatal,
+    apenas de modo caro.</strong></p>
+
+    <div class="notes" hidden>
+      <b>A tese · 2min — slide central da defesa</b>
+      <p>Este é o slide a defender com mais convicção. A pergunta previsível do professor é
+      “como você garante corretude se a primeira fase é aleatória?”. A resposta está desenhada:
+      ela não garante. A Fase 2 garante, e ela é determinística.</p>
+      <p>Prova executável, se cobrarem: <span class="mono">sanfona_sort()</span> é o algoritmo
+      sem a Fase 1, e a suíte roda <em>todos</em> os cenários obrigatórios contra ela. Há
+      também um teste que sabota a Sondagem com <span class="mono">s = 1</span> — uma única
+      testemunha — e ainda exige saída perfeita.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 4 ─────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§2.1</b><span>Especificação formal</span></div>
+    <h2>Pseudocódigo</h2>
+    <div class="split even">
+      <pre><span class="c">─── FASE 1: SONDAGEM ────────────────</span>
+<span class="k">para</span> i ← 0 <span class="k">até</span> n−1 <span class="k">faça</span>
+    c ← 0
+    <span class="k">repita</span> s <span class="k">vezes</span>
+        j ← aleatório em [0, n−1]
+        <span class="k">se</span> A[j] &lt; A[i] <span class="k">então</span> c ← c + 1
+    p̂[i] ← ⌊ (c / s) · (n−1) ⌋
+B ← distribuição estável de A por p̂
+
+<span class="c">n·s comparações, n movimentações</span></pre>
+      <pre><span class="c">─── FASE 2: SANFONA ─────────────────</span>
+w     ← max(2, min(w, n))
+<span class="h">passo ← ⌊w / 2⌋</span>
+inícios ← { 0, passo, … } ∪ { n−w }
+
+<span class="k">repita</span>
+    movimentou ← falso
+    <span class="k">para cada</span> p <span class="k">em</span> inícios <span class="k">faça</span>
+        <span class="k">se</span> INSERÇÃO(B, p, p+w) moveu
+            <span class="k">então</span> movimentou ← verdadeiro
+<span class="k">até</span> movimentou = falso</pre>
+    </div>
+    <p>A <span class="mono">INSERÇÃO</span> usa comparação estrita, logo <strong>só troca
+    elementos vizinhos</strong> — não é detalhe de implementação, é a peça de que a prova de
+    término depende.</p>
+    <div class="notes" hidden>
+      <b>Pseudocódigo · 1min30</b>
+      <p>Ler os dois blocos rápido, sem soletrar linha por linha. Sublinhar duas coisas:
+      (1) <span class="mono">passo ← ⌊w/2⌋</span>, destacado, porque é o próximo slide;
+      (2) a comparação estrita, que faz a inserção só trocar vizinhos — e é isso que a prova de
+      término vai consumir.</p>
+      <p>Se perguntarem por que o último início é <span class="mono">n−w</span>: para a janela
+      final encostar na borda direita, senão as últimas posições ficam descobertas e o
+      argumento de cobertura quebra. Casos limite N=0 e N=1 saem antes das duas fases.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 5 ─────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§1.2</b><span>A decisão de projeto mais importante</span></div>
+    <h2>Por que o passo é <span class="mono q2">w/2</span>, e nunca <span class="mono">w</span></h2>
+
+    <figure>
+      <svg viewBox="0 0 760 300" role="img" aria-label="Comparação entre janelas disjuntas e janelas sobrepostas no vetor 3,4,1,2 com largura 2. Com passo 2 as duas janelas já estão internamente ordenadas, nada se move, o algoritmo encerra e devolve o vetor errado. Com passo 1 existe uma terceira janela cobrindo o par 4,1, que é trocado, e a ordenação prossegue corretamente.">
+        <text x="34" y="24" font-family="JetBrains Mono, monospace" font-size="14" letter-spacing="1" font-weight="700" fill="var(--wrong)">PASSO = w · JANELAS DISJUNTAS</text>
+
+        <g font-family="JetBrains Mono, monospace" font-size="20" font-weight="700" text-anchor="middle">
+          <rect x="34"  y="42" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="56"  y="72" fill="currentColor">3</text>
+          <rect x="78"  y="42" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="100" y="72" fill="currentColor">4</text>
+          <rect x="122" y="42" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="144" y="72" fill="currentColor">1</text>
+          <rect x="166" y="42" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="188" y="72" fill="currentColor">2</text>
+        </g>
+        <g font-family="JetBrains Mono, monospace" font-size="12" text-anchor="middle" fill="var(--ink-3)">
+          <text x="56" y="100">0</text><text x="100" y="100">1</text><text x="144" y="100">2</text><text x="188" y="100">3</text>
+        </g>
+
+        <path d="M36,114 v10 h84 v-10" fill="none" stroke="var(--wrong)" stroke-width="1.8"/>
+        <text x="78" y="144" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" fill="var(--wrong)">[3,4] ordenada</text>
+        <path d="M124,114 v10 h84 v-10" fill="none" stroke="var(--wrong)" stroke-width="1.8"/>
+        <text x="166" y="170" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" fill="var(--wrong)">[1,2] ordenada</text>
+
+        <text x="34" y="208" font-family="Source Sans 3, sans-serif" font-size="16" fill="currentColor">Nenhuma movimentação → o laço encerra.</text>
+        <text x="34" y="230" font-family="Source Sans 3, sans-serif" font-size="16" fill="var(--ink-2)">O par (4, 1) nunca esteve em janela alguma.</text>
+
+        <rect x="34" y="246" width="216" height="44" fill="var(--wrong-soft)" stroke="var(--wrong)" stroke-width="1.8"/>
+        <text x="46" y="275" font-family="JetBrains Mono, monospace" font-size="17" font-weight="700" fill="var(--wrong)">[3,4,1,2] ← ERRADO</text>
+
+        <line x1="386" y1="12" x2="386" y2="288" stroke="var(--rule)" stroke-width="1.6"/>
+
+        <text x="424" y="24" font-family="JetBrains Mono, monospace" font-size="14" letter-spacing="1" font-weight="700" fill="var(--ph2)">PASSO = ⌊w/2⌋ · SOBREPOSTAS</text>
+
+        <g font-family="JetBrains Mono, monospace" font-size="20" font-weight="700" text-anchor="middle">
+          <rect x="424" y="42" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="446" y="72" fill="currentColor">3</text>
+          <rect x="468" y="42" width="44" height="44" fill="var(--ph2-soft)" stroke="var(--ph2)" stroke-width="2.2"/><text x="490" y="72" fill="var(--ph2)">4</text>
+          <rect x="512" y="42" width="44" height="44" fill="var(--ph2-soft)" stroke="var(--ph2)" stroke-width="2.2"/><text x="534" y="72" fill="var(--ph2)">1</text>
+          <rect x="556" y="42" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="578" y="72" fill="currentColor">2</text>
+        </g>
+        <g font-family="JetBrains Mono, monospace" font-size="12" text-anchor="middle" fill="var(--ink-3)">
+          <text x="446" y="100">0</text><text x="490" y="100">1</text><text x="534" y="100">2</text><text x="578" y="100">3</text>
+        </g>
+
+        <path d="M426,114 v10 h84 v-10" fill="none" stroke="var(--ink-3)" stroke-width="1.4"/>
+        <text x="468" y="144" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" fill="var(--ink-3)">[3,4]</text>
+        <path d="M470,114 v22 h84 v-22" fill="none" stroke="var(--ph2)" stroke-width="2.4"/>
+        <text x="512" y="170" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="15" font-weight="700" fill="var(--ph2)">[4,1] → troca</text>
+        <path d="M514,114 v10 h84 v-10" fill="none" stroke="var(--ink-3)" stroke-width="1.4"/>
+        <text x="556" y="196" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" fill="var(--ink-3)">[1,2]</text>
+
+        <text x="424" y="230" font-family="Source Sans 3, sans-serif" font-size="16" fill="currentColor">Todo par vizinho <tspan font-weight="700">(k, k+1)</tspan> cai em alguma janela.</text>
+
+        <rect x="424" y="246" width="238" height="44" fill="var(--ph2-soft)" stroke="var(--ph2)" stroke-width="1.8"/>
+        <text x="436" y="275" font-family="JetBrains Mono, monospace" font-size="17" font-weight="700" fill="var(--ph2)">[1,2,3,4] ← ordena</text>
+      </svg>
+      <figcaption>Não é azar isolado: <span class="mono">[4,5,6,1,2,3]</span> com
+      <span class="mono">w = 3</span> falha igual, e a construção se generaliza a qualquer bloco
+      internamente ordenado na posição errada — <strong>família infinita de falhas</strong>.</figcaption>
+    </figure>
+
+    <p class="claim">Com janelas sobrepostas, o <strong>único ponto fixo é o vetor
+    ordenado</strong>. É a razão de o algoritmo funcionar.</p>
+
+    <div class="notes" hidden>
+      <b>O contraexemplo · 2min — segundo slide mais importante</b>
+      <p>Andar o vetor com o dedo. Com passo 2, olhe: as duas janelas estão ordenadas <em>por
+      dentro</em>, nada se move, o critério de parada dispara, e a saída está errada. O par
+      (4,1) nunca coexistiu numa janela.</p>
+      <p>Dizer explicitamente que <strong>isto é corretude, não desempenho</strong>. E que está
+      codificado como teste automatizado: o teste exige que a versão disjunta <em>falhe</em> e
+      que a sobreposta acerte — <span class="mono">test_disjoint_windows_have_spurious_fixed_points</span>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6 ─────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§2.2</b><span>Exemplo numérico · rastro real de <span class="mono">exemplo_didatico.py</span></span></div>
+    <h2>12 elementos, <span class="mono">s = 4</span>, <span class="mono">w = 4</span></h2>
+
+    <div class="split even">
+      <div class="stack">
+        <h3 class="q1">Fase 1 — 4 testemunhas por elemento</h3>
+        <pre>valor |    testemunhas |  c | posição
+-----------------------------------
+   42 | [54,19,96,77]  |  1 |   2
+   19 | [96,3,12,88]   |  2 |   5
+   88 | [33,96,54,61]  |  3 |   8
+    3 | [25,12,96,77]  |  0 |   0
+<span class="h">   54 | [88,96,96,54]  |  0 |   0  ← errou</span>
+   12 | [96,33,19,12]  |  0 |   0</pre>
+        <p>O <span class="mono q1">54</span> não sorteou testemunha menor e foi para a posição
+        0. <strong>A Fase 1 errou feio</strong> — e a saída continua correta.</p>
+      </div>
+      <div class="stack">
+        <h3 class="q2">Fase 2 — janelas de 4, passo 2</h3>
+        <pre><span class="c">Passada 1</span>
+ [0:4] [3,54,12,42]  → [3,12,42,54] <span class="k">move</span>
+ [2:6] [42,54,7,19]  → [7,19,42,54] <span class="k">move</span>
+ [4:8] [42,54,61,25] → [25,42,54,61] <span class="k">move</span>
+ ...                            Inv = 2
+
+<span class="c">Passada 2</span>  duas janelas movem   Inv = 0
+<span class="c">Passada 3</span>  <span class="h">nada move → PONTO FIXO</span></pre>
+        <p>A <strong>passada 3</strong> não muda nada, mas é ela que <em>constata</em> o ponto
+        fixo. Não há como saber que terminou sem gastar uma varredura.</p>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="v">106</span><span class="l">comparações</span></div>
+      <div class="stat"><span class="v">118</span><span class="l">movimentações</span></div>
+      <div class="stat a2"><span class="v">16</span><span class="l">trocas de vizinhos</span></div>
+      <div class="stat a2"><span class="v">16</span><span class="l">Inv(A₀) na entrada da Fase 2</span></div>
+    </div>
+
+    <div class="notes" hidden>
+      <b>Exemplo · 2min</b>
+      <p>Dois pontos a extrair, e só dois. Primeiro: o <span class="mono">54</span> — apontar
+      para ele. É a demonstração concreta de que a Fase 1 erra, e de que errar não compromete
+      nada. Segundo: os dois 16 iguais, que preparam o corolário do próximo slide — a
+      coincidência que não é coincidência.</p>
+      <p>Se perguntarem por que a passada 3 existe: o sinal de parada é
+      <span class="mono">movimentou</span>, custo O(1). Detectar o ponto fixo sem varrer
+      exigiria calcular <span class="mono">Inv</span>, que custa mais que desfazer a desordem
+      que ele mede.</p>
+      <p>A tabela no slide mostra 6 dos 12 elementos, por espaço. O rastro completo está em
+      <span class="mono">exemplo_didatico.py</span> e na §2.2 do relatório.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 7 ─────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§3.1</b><span>Corretude · término</span></div>
+    <h2>A função potencial</h2>
+    <p class="lead"><span class="mono">Inv(A) = #{ (i,j) : i &lt; j e A[i] &gt; A[j] }</span></p>
+    <div class="split even">
+      <div class="stack">
+        <h3>O argumento em quatro passos</h3>
+        <ul>
+          <li><strong>1.</strong> <span class="mono">Inv</span> é inteiro não-negativo.</li>
+          <li><strong>2.</strong> Cada movimentação a reduz em <strong>exatamente 1</strong>.</li>
+          <li><strong>3.</strong> Inicialmente <span class="mono">Inv ≤ n(n−1)/2</span>, máximo
+          atingido pelo <strong>vetor reverso</strong> — o cenário de estresse da suíte.</li>
+          <li><strong>4.</strong> Infinitas passadas tornariam <span class="mono">Inv</span>
+          negativo, contradizendo o passo 1. ∎</li>
+        </ul>
+      </div>
+      <div class="stack">
+        <h3>Por que o passo 2 exige adjacência</h3>
+        <p>A inserção só troca posições vizinhas <span class="mono">k, k+1</span>, e só quando
+        <span class="mono">A[k] &gt; A[k+1]</span>. Esse par deixa de ser inversão:
+        <span class="mono">−1</span>. E <strong>não existe posição estritamente entre
+        <span class="mono">k</span> e <span class="mono">k+1</span></strong>, logo nenhum outro
+        par muda de status.</p>
+        <p class="claim warn">Uma troca a distância <span class="mono">d</span> alteraria até
+        <span class="mono">2d − 1</span> pares de uma vez.</p>
+        <p><strong>Corolário:</strong> o total de trocas de vizinhos é <strong>exatamente
+        <span class="mono">Inv(A₀)</span></strong>. Não é cota — é igualdade, e é verificada
+        como igualdade em quatro distribuições.</p>
+      </div>
+    </div>
+    <div class="notes" hidden>
+      <b>Término · 2min</b>
+      <p>Não recitar os quatro passos. Dizer o argumento inteiro em uma frase — “existe uma
+      grandeza inteira, não-negativa, que cai de exatamente 1 a cada movimentação; então não há
+      execução infinita” — e gastar o tempo no <strong>por que a adjacência importa</strong>,
+      que é a parte que um avaliador testa.</p>
+      <p>Aqui fecha o gancho do slide 6: os dois 16 são o corolário.
+      <span class="mono">Inv</span> é grandeza <em>da análise</em>, não do algoritmo — o código
+      não a calcula em lugar nenhum, e calculá-la custaria mais que desfazer a desordem.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 8 ─────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§3.2</b><span>Corretude · no ponto fixo</span></div>
+    <h2>Toda janela parada ⟹ vetor ordenado</h2>
+    <div class="split even">
+      <div class="stack">
+        <p>Nenhuma movimentação na passada inteira significa que <strong>nada se moveu</strong>,
+        logo todas as janelas estavam <em>simultaneamente</em> ordenadas.</p>
+        <p>Uma janela iniciada em <span class="mono">p</span> cobre
+        <span class="mono">[p, p+w−1]</span>, portanto contém o par vizinho
+        <span class="mono">(k, k+1)</span> se e somente se</p>
+        <p class="lead" style="text-align:center"><span class="mono q2">k + 2 − w ≤ p ≤ k</span></p>
+        <p>— intervalo de comprimento <span class="mono">w − 1</span>. Como os inícios são
+        múltiplos de <span class="mono">⌊w/2⌋ ≤ w − 1</span>, sempre existe um início ali
+        dentro. Todo par vizinho em ordem ⟹ vetor ordenado. ∎</p>
+      </div>
+      <div class="stack">
+        <h3>A consequência de projeto</h3>
+        <p>O intervalo de comprimento <span class="mono">w − 1</span> mostra que o passo
+        <strong>máximo admissível</strong> é <span class="mono">w − 1</span>, não
+        <span class="mono">w/2</span>.</p>
+        <p class="claim">A escolha <span class="mono">w/2</span> é <strong>conservadora de
+        propósito</strong>: compra meia janela de avanço garantido por varredura — o que o
+        lema do próximo slide consome.</p>
+      </div>
+    </div>
+    <div class="notes" hidden>
+      <b>Ponto fixo · 1min30</b>
+      <p>A conta <span class="mono">k+2−w ≤ p ≤ k</span> vale ser escrita no ar: é o argumento
+      de cobertura, e ele reaparece duas vezes — aqui, e como Passo 1 do lema do avanço.</p>
+      <p>A simultaneidade é o ponto delicado: numa passada comum, ordenar uma janela pode
+      desarrumar a sobreposição da anterior. A preocupação desaparece exatamente quando não há
+      movimentação.</p>
+      <p>Se perguntarem por que não usar o passo máximo <span class="mono">w−1</span>: a
+      corretude sobrevive, mas a convergência piora.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 9 ─────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§4.1</b><span>Análise · Fase 1</span></div>
+    <h2>O erro da sondagem é quantificável</h2>
+    <div class="split even">
+      <div class="stack">
+        <p>Com <span class="mono">p<sub>i</sub> = r<sub>i</sub>/n</span> o posto normalizado de
+        <span class="mono">A[i]</span>, cada testemunha é sorteada uniformemente, logo</p>
+        <p class="lead" style="text-align:center"><span class="mono">X<sub>i</sub> ~ Binomial(s, p<sub>i</sub>)</span></p>
+        <h3>Custo</h3>
+        <p>Exatamente <span class="mono">n·s</span> comparações: <strong><span class="mono">Θ(n·s)</span>,
+        independente da entrada.</strong></p>
+        <h3>Erro típico — o que a variância dá</h3>
+        <p><span class="mono">Var(p̂<sub>i</sub>) ≤ 1/(4s)</span>, logo o deslocamento típico em
+        posições é <strong class="q1"><span class="mono">O(n/√s)</span></strong>.</p>
+      </div>
+      <div class="stack">
+        <h3>Erro máximo — Hoeffding + cota da união</h3>
+        <p class="lead" style="text-align:center"><span class="mono">Pr[ |p̂<sub>i</sub> − p<sub>i</sub>| ≥ ε ] ≤ 2e<sup>−2sε²</sup></span></p>
+        <p>Com união sobre os <span class="mono">n</span> elementos, <strong>todas</strong> as
+        estimativas ficam dentro de <span class="mono">ε</span>. Dois elementos só saem trocados
+        se <span class="mono">|p<sub>j</sub> − p<sub>i</sub>| ≤ 2ε</span>, e há no máximo
+        <span class="mono">2εn</span> deles nessa faixa:</p>
+        <p class="claim warn"><span class="mono">D = O(n·√(log n / s))</span> com alta
+        probabilidade</p>
+        <p>Os dois instrumentos dão <strong>cotas diferentes</strong> — é o que separa os dois
+        regimes do quadro-resumo.</p>
+      </div>
+    </div>
+    <div class="notes" hidden>
+      <b>Fase 1 · 2min</b>
+      <p>Distinguir com clareza os dois instrumentos, porque é onde a análise ganha ou perde
+      nota: a <strong>variância</strong> dá o erro <em>típico</em>
+      <span class="mono">O(n/√s)</span> e sustenta o regime de esperança;
+      <strong>Hoeffding + união</strong> dá o erro <em>simultâneo para todos os n</em> e cobra
+      um fator <span class="mono">√log n</span> por isso.</p>
+      <p>Se perguntarem por que a esperança não precisa de Hoeffding: porque
+      <span class="mono">Inv ≤ Σ dᵢ</span> é uma <em>soma</em>, e linearidade da esperança
+      basta. Máximo precisaria de concentração; soma não.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 10 ────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§4.2</b><span>Análise · Fase 2 · o lema que sustenta tudo</span></div>
+    <h2>Lema do avanço</h2>
+    <p class="claim">Se <span class="mono">Dis<sub>esq</sub> = d</span> no início de uma
+    varredura, ao fim dela <span class="mono">Dis<sub>esq</sub> ≤ max(0, d − ⌊w/2⌋)</span>.</p>
+
+    <figure>
+      <svg viewBox="0 0 760 200" role="img" aria-label="Redução a um vetor de zeros e uns. Pintando de 1 os m menores elementos, ordenar uma janela equivale a compactar seus uns à esquerda, de modo que nenhum um anda para a direita. A posição do um mais à direita recua ao menos a metade da largura da janela por varredura.">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="var(--ph1)"/>
+          </marker>
+        </defs>
+        <text x="10" y="16" font-family="JetBrains Mono, monospace" font-size="13" letter-spacing="1.1" font-weight="700" fill="var(--ink-3)">REDUÇÃO 0/1 · OS m = 4 MENORES PINTADOS DE 1</text>
+
+        <text x="10" y="52" font-family="JetBrains Mono, monospace" font-size="14" fill="var(--ink-2)">antes</text>
+        <g font-family="JetBrains Mono, monospace" font-size="16" font-weight="700" text-anchor="middle">
+          <rect x="104" y="30" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="123" y="52" fill="var(--ink-3)">0</text>
+          <rect x="142" y="30" width="38" height="32" fill="var(--ph2-soft)" stroke="var(--ph2)" stroke-width="1.8"/><text x="161" y="52" fill="var(--ph2)">1</text>
+          <rect x="180" y="30" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="199" y="52" fill="var(--ink-3)">0</text>
+          <rect x="218" y="30" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="237" y="52" fill="var(--ink-3)">0</text>
+          <rect x="256" y="30" width="38" height="32" fill="var(--ph2-soft)" stroke="var(--ph2)" stroke-width="1.8"/><text x="275" y="52" fill="var(--ph2)">1</text>
+          <rect x="294" y="30" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="313" y="52" fill="var(--ink-3)">0</text>
+          <rect x="332" y="30" width="38" height="32" fill="var(--ph2-soft)" stroke="var(--ph2)" stroke-width="1.8"/><text x="351" y="52" fill="var(--ph2)">1</text>
+          <rect x="370" y="30" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="389" y="52" fill="var(--ink-3)">0</text>
+          <rect x="408" y="30" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="427" y="52" fill="var(--ink-3)">0</text>
+          <rect x="446" y="30" width="38" height="32" fill="var(--ph2-soft)" stroke="var(--ph2)" stroke-width="1.8"/><text x="465" y="52" fill="var(--ph2)">1</text>
+          <rect x="484" y="30" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="503" y="52" fill="var(--ink-3)">0</text>
+          <rect x="522" y="30" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="541" y="52" fill="var(--ink-3)">0</text>
+        </g>
+        <line x1="465" y1="64" x2="465" y2="74" stroke="var(--ph2)" stroke-width="1.8"/>
+        <text x="465" y="88" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="var(--ph2)">R = 9</text>
+
+        <text x="10" y="140" font-family="JetBrains Mono, monospace" font-size="14" fill="var(--ink-2)">1 varredura</text>
+        <g font-family="JetBrains Mono, monospace" font-size="16" font-weight="700" text-anchor="middle">
+          <rect x="104" y="122" width="38" height="32" fill="var(--ph2-soft)" stroke="var(--ph2)" stroke-width="1.8"/><text x="123" y="144" fill="var(--ph2)">1</text>
+          <rect x="142" y="122" width="38" height="32" fill="var(--ph2-soft)" stroke="var(--ph2)" stroke-width="1.8"/><text x="161" y="144" fill="var(--ph2)">1</text>
+          <rect x="180" y="122" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="199" y="144" fill="var(--ink-3)">0</text>
+          <rect x="218" y="122" width="38" height="32" fill="var(--ph2-soft)" stroke="var(--ph2)" stroke-width="1.8"/><text x="237" y="144" fill="var(--ph2)">1</text>
+          <rect x="256" y="122" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="275" y="144" fill="var(--ink-3)">0</text>
+          <rect x="294" y="122" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="313" y="144" fill="var(--ink-3)">0</text>
+          <rect x="332" y="122" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="351" y="144" fill="var(--ink-3)">0</text>
+          <rect x="370" y="122" width="38" height="32" fill="var(--ph2-soft)" stroke="var(--ph2)" stroke-width="1.8"/><text x="389" y="144" fill="var(--ph2)">1</text>
+          <rect x="408" y="122" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="427" y="144" fill="var(--ink-3)">0</text>
+          <rect x="446" y="122" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="465" y="144" fill="var(--ink-3)">0</text>
+          <rect x="484" y="122" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="503" y="144" fill="var(--ink-3)">0</text>
+          <rect x="522" y="122" width="38" height="32" fill="none" stroke="var(--rule)" stroke-width="1.4"/><text x="541" y="144" fill="var(--ink-3)">0</text>
+        </g>
+        <line x1="389" y1="156" x2="389" y2="166" stroke="var(--ph2)" stroke-width="1.8"/>
+        <text x="389" y="180" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="var(--ph2)">R = 7</text>
+
+        <path d="M462,104 L392,104" fill="none" stroke="var(--ph1)" stroke-width="2" marker-end="url(#ar2)"/>
+        <text x="586" y="100" font-family="JetBrains Mono, monospace" font-size="15" font-weight="700" fill="var(--ph1)">recuo ≥ ⌊w/2⌋ = 2</text>
+        <text x="586" y="120" font-family="JetBrains Mono, monospace" font-size="13" fill="var(--ink-3)">por varredura</text>
+        <text x="586" y="46" font-family="JetBrains Mono, monospace" font-size="13" fill="var(--ink-3)">um 1 nunca anda</text>
+        <text x="586" y="64" font-family="JetBrains Mono, monospace" font-size="13" fill="var(--ink-3)">para a direita</text>
+      </svg>
+    </figure>
+
+    <div class="split even">
+      <p>Ordenar uma janela equivale a <strong>compactar seus 1s à esquerda</strong>, logo
+      <span class="mono">R<sub>m</sub></span> é não-crescente. Duas premissas conjuntas: a
+      <strong class="q2">sobreposição</strong> e a varredura em <strong class="q2">ordem
+      crescente</strong>.</p>
+      <p class="claim">Sem o lema, o limite derivável seria <span class="mono">O(n³)</span> —
+      colocando o OSJ <em>abaixo do Bubble Sort</em>. Com ele,
+      <span class="mono">P = O(D/w + 1)</span>.</p>
+    </div>
+
+    <div class="notes" hidden>
+      <b>Lema do avanço · 2min30 — a parte tecnicamente mais forte</b>
+      <p>Este lema entrou depois: na primeira versão a afirmação “cada varredura reduz o
+      deslocamento em w/2” sustentava toda a análise <em>sem estar provada</em>. Vale dizer isso
+      na defesa — mostra revisão crítica própria.</p>
+      <p>A redução 0/1 é o truque a vender: ela transforma um enunciado sobre ordem total num
+      enunciado sobre compactar uns. Pintando de 1 os m menores, todo 1 precede todo 0, e
+      <span class="mono">Dis_esq = max(R_m − (m−1))</span>.</p>
+      <p><strong>Peso da consequência:</strong> o único limite de varreduras provado antes dele
+      é <span class="mono">P ≤ n(n−1)/2</span> (do término), verdadeiro e inútil aqui. O lema
+      troca “ao menos uma inversão por varredura” por “ao menos ⌊w/2⌋ posições de deslocamento
+      por varredura”, que é <span class="mono">Θ(n^(2/3))</span> vezes mais forte.</p>
+      <p>Se perguntarem pelo lado direito: o enunciado simétrico é <strong>falso</strong>. Em
+      <span class="mono">[2,3,0,1]</span> com <span class="mono">w = 2</span> o elemento 2
+      precisa avançar duas posições à direita e a varredura o deixa onde estava. A garantia é
+      do lado esquerdo — e <span class="mono">Dis_esq = 0</span> já implica vetor ordenado, que
+      é o lado de que a análise precisa.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 11 ────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§4.3</b><span>Análise · a escolha ótima dos parâmetros</span></div>
+    <h2>De onde vem o expoente 5/3</h2>
+    <div class="split even">
+      <div class="stack">
+        <p>Somando as duas fases, com <span class="mono">w = Θ(D)</span>:</p>
+        <p class="lead" style="text-align:center"><span class="mono">T(n,s) = <span class="q1">Θ(n·s)</span> + <span class="q2">O(n²/√s)</span></span></p>
+        <p>O primeiro termo <strong>cresce</strong> com <span class="mono">s</span>; o segundo
+        <strong>decresce</strong>. Há um ótimo:</p>
+        <pre>n − ½·n²·s<sup>−3/2</sup> = 0
+   ⟹  s<sup>3/2</sup> = n/2
+   ⟹  <span class="h">s* = Θ(n^(2/3))</span>
+
+w* = Θ(D) = Θ(n/√s*) = Θ(n^(2/3))
+
+T(n) = Θ(n · n^(2/3)) = <span class="h">Θ(n^(5/3))</span></pre>
+      </div>
+      <div class="stack">
+        <p class="claim">A troca explícita: gastar comparações <strong>baratas de
+        amostragem</strong> para evitar comparações <strong>caras de deslocamento</strong>.</p>
+        <p>O ótimo é o ponto em que <strong>as duas fases custam o mesmo</strong> — é o que
+        explica <span class="mono">s</span> e <span class="mono">w</span> coincidirem em
+        <span class="mono">n<sup>2/3</sup></span>.</p>
+        <div class="tw"><table>
+          <thead><tr><th>Regime</th><th>Cota</th></tr></thead>
+          <tbody>
+            <tr class="me"><td>esperança</td><td>Θ(n<sup>5/3</sup>)</td></tr>
+            <tr><td>alta probabilidade</td><td class="g">O(n<sup>5/3</sup>(log n)<sup>1/3</sup>)</td></tr>
+          </tbody>
+        </table></div>
+        <p>O fator <span class="mono">(log n)<sup>1/3</sup></span> é o preço da cota da união
+        sobre os <span class="mono">n</span> elementos.</p>
+      </div>
+    </div>
+    <div class="notes" hidden>
+      <b>A otimização · 2min</b>
+      <p>Fazer a derivada no ar, devagar. É o cálculo que o critério “Análise Teórica de
+      Complexidade” (25% da nota) mais recompensa, e é curto.</p>
+      <p>Frisar a leitura estrutural: <strong>o ótimo é onde as duas fases custam o
+      mesmo</strong>.</p>
+      <p>Se perguntarem sobre o <span class="mono">Θ</span>: a cota <em>inferior</em> é própria
+      e incondicional, e vem da Fase 1 — ela faz <span class="mono">n·s</span> comparações sem
+      olhar para nada, logo <span class="mono">T ≥ Ω(n^(5/3))</span> em <em>toda</em> execução,
+      não só em esperança. É isso que fecha o Θ; a soma de Θ com O sozinha daria só um O.</p>
+      <p>O código mantém <span class="mono">Θ(n^(2/3))</span>: é o ótimo do regime de
+      esperança, que é o regime em que o algoritmo é reivindicado (ADR-0002).</p>
+    </div>
+  </div>
+</section>
+
+<!-- 12 ────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§4.3</b><span>Análise · pior caso</span></div>
+    <h2>O pior caso é o Insertion Sort mais o troco</h2>
+    <div class="split even">
+      <div class="stack">
+        <p>O pior caso é o evento em que a Sondagem <strong>degenera</strong>. A análise
+        probabilística não o proíbe — ela vale <em>com alta probabilidade</em>, e o pior caso
+        mora no complemento. Única hipótese: <span class="mono">A₀</span> é um vetor qualquer.</p>
+        <pre>C(Fase 2) = <span class="k">Θ(n)·P</span> + <span class="k">Inv(A₀)</span>
+
+P ≤ O(Dis_esq/w + 1)  <span class="c">← lema</span>
+Dis_esq ≤ n − 1       <span class="c">← sempre</span>
+w = Θ(n^(2/3)) ⟹ P = O(n^(1/3))
+
+T = <span class="h">Θ(n^(5/3))</span> + <span class="k">O(n^(4/3))</span> + <span class="k">Inv(A₀)</span>
+  = <span class="h">O(n²)</span></pre>
+      </div>
+      <div class="stack">
+        <h3>Duas leituras que a derivação torna visíveis</h3>
+        <ul>
+          <li>O termo dominante vem das <strong>trocas de vizinhos</strong>, não das varreduras:
+          a varredura é <span class="mono">O(n<sup>4/3</sup>)</span>, menor até que a Fase 1.</li>
+          <li>Quem carrega o <span class="mono">n²</span> é <span class="mono">Inv(A₀)</span>,
+          pago uma troca de cada vez — exatamente como no Insertion.</li>
+        </ul>
+        <p class="claim bad">O OSJ degenera para o <strong>Insertion Sort acrescido de um
+        overhead <span class="mono">Θ(n·s)</span></strong> de sondagem desperdiçada. É o preço
+        de uma aposta que não pagou.</p>
+      </div>
+    </div>
+    <div class="notes" hidden>
+      <b>Pior caso · 1min30</b>
+      <p>Esta derivação também nasceu de revisão: a justificativa original do
+      <span class="mono">O(n²)</span> estava <em>errada</em> — citava o corolário do potencial,
+      que limita <em>trocas</em>, não comparações. Dizer isso é ponto a favor no critério de
+      pensamento crítico.</p>
+      <p>A frase “Insertion Sort mais o troco” é a que se lembra. Usá-la.</p>
+      <p><span class="mono">O(n²)</span> é cota superior, não Θ: atingi-la exige uma Sondagem
+      que devolva vetor quase reverso — probabilidade desprezível para
+      <span class="mono">s = Θ(n^(2/3))</span>, mas não impossível.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 13 ────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§4.4</b><span>Quadro-resumo</span></div>
+    <h2>As propriedades, reunidas</h2>
+    <div class="tw"><table>
+      <thead><tr><th>Propriedade</th><th>OSJ</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td>Melhor caso</td><td class="g">Ω(n<sup>5/3</sup>)</td><td>não é adaptativo: paga <span class="mono">n·s</span> no vetor já ordenado</td></tr>
+        <tr class="me"><td>Caso médio (esperança)</td><td>Θ(n<sup>5/3</sup>)</td><td>esperança sobre a Sondagem, para <strong>toda</strong> entrada</td></tr>
+        <tr><td>Alta probabilidade</td><td class="g">O(n<sup>5/3</sup>(log n)<sup>1/3</sup>)</td><td>Hoeffding + cota da união</td></tr>
+        <tr><td>Pior caso</td><td class="g">O(n²)</td><td>sondagem degenerada; lema do avanço + potencial</td></tr>
+        <tr><td>Movimentações</td><td class="g">= Inv(A₀)</td><td>fórmula fechada, não cota</td></tr>
+        <tr><td>Espaço auxiliar</td><td class="g">Θ(n)</td><td>baldes da Fase 1; a Fase 2 isolada é in-place</td></tr>
+        <tr><td>Estabilidade</td><td class="g">não</td><td>sim na variante compartilhada — a menos autoral</td></tr>
+        <tr><td>Determinismo</td><td class="g">não</td><td>aleatorizado, mas <strong>a corretude é determinística</strong></td></tr>
+      </tbody>
+    </table></div>
+    <p class="claim warn">A reivindicação é a forte: <strong>para toda entrada</strong>, não uma
+    entrada média — mais forte que o caso médio do Quick Sort.</p>
+    <div class="notes" hidden>
+      <b>Quadro-resumo · 1min30</b>
+      <p>Não ler a tabela. Deixar no ar e narrar três linhas: melhor caso (a limitação honesta),
+      caso médio (a reivindicação), pior caso (o que se suporta).</p>
+      <p>O que licencia a reivindicação forte, se perguntarem: a esperança é sobre a moeda do
+      algoritmo, não sobre uma distribuição de entradas.
+      <span class="mono">Xᵢ ~ Binomial(s, pᵢ)</span> depende só do <strong>posto</strong> de
+      <span class="mono">A[i]</span>, e a família dos postos é <span class="mono">{0,…,n−1}</span>
+      seja qual for a permutação recebida. Nenhum passo da §4.1 usa hipótese sobre a entrada.</p>
+      <p>E a §6.4 mede exatamente isso: 3% de espalhamento entre a entrada mais favorável e a
+      mais hostil aos quadráticos.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 14 ────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§5.1 · §5.2</b><span>Comparação com a literatura</span></div>
+    <h2>Contra os métodos consagrados</h2>
+    <div class="tw"><table>
+      <thead><tr><th>Método</th><th class="n">Melhor</th><th class="n">Médio</th><th class="n">Pior</th><th class="n">Espaço</th><th class="n">Estável</th><th class="n">In-place</th></tr></thead>
+      <tbody>
+        <tr><td>Insertion Sort</td><td class="n">Θ(n)</td><td class="n">Θ(n²)</td><td class="n">Θ(n²)</td><td class="n">O(1)</td><td class="n">sim</td><td class="n">sim</td></tr>
+        <tr><td>Selection Sort</td><td class="n">Θ(n²)</td><td class="n">Θ(n²)</td><td class="n">Θ(n²)</td><td class="n">O(1)</td><td class="n">não</td><td class="n">sim</td></tr>
+        <tr><td>Merge Sort</td><td class="n">Θ(n log n)</td><td class="n">Θ(n log n)</td><td class="n">Θ(n log n)</td><td class="n">O(n)</td><td class="n">sim</td><td class="n">não</td></tr>
+        <tr><td>Quick Sort</td><td class="n">Θ(n log n)</td><td class="n">Θ(n log n)</td><td class="n">Θ(n²)</td><td class="n">O(log n)</td><td class="n">não</td><td class="n">sim</td></tr>
+        <tr class="me"><td>OSJ</td><td class="n">Ω(n<sup>5/3</sup>)</td><td class="n">Θ(n<sup>5/3</sup>)</td><td class="n">O(n²)</td><td class="n">Θ(n)</td><td class="n">não</td><td class="n">não</td></tr>
+      </tbody>
+    </table></div>
+    <div class="cols four">
+      <div class="phase one">
+        <span class="tag">contra o Insertion</span>
+        <p>O OSJ <strong>o contém</strong>: com <span class="mono">w = n</span> a Fase 2 é uma
+        inserção sobre o vetor inteiro. <span class="mono">w</span> interpola uma família.</p>
+      </div>
+      <div class="phase two">
+        <span class="tag">contra o Quick</span>
+        <p>A aleatoriedade tem papéis <strong>opostos</strong>: no Quick ela está na estrutura
+        recursiva; no OSJ, confinada a uma fase que não pode errar.</p>
+      </div>
+      <div class="phase">
+        <span class="tag">contra o Merge</span>
+        <p>Superior, e o OSJ <strong>não compete</strong>. O Merge constrói a ordem por fusão
+        exata; o OSJ a estima e repara o erro.</p>
+      </div>
+      <div class="phase">
+        <span class="tag">relação com o Shell</span>
+        <p>O Shell opera em elementos <strong>distantes</strong> com incremento decrescente; a
+        Sanfona, em blocos <strong>contíguos</strong> com <span class="mono">w</span> fixo.</p>
+      </div>
+    </div>
+    <div class="notes" hidden>
+      <b>Literatura · 2min</b>
+      <p>O enunciado exige tabela + discussão contra ≥ 2 clássicos. Aqui há quatro mais o
+      Shell. Não ler os quatro cartões — escolher dois: <strong>Insertion</strong> (porque o OSJ
+      o contém, e é a comparação estruturalmente mais reveladora) e <strong>Quick</strong>
+      (porque contrasta o papel da aleatoriedade, que é a tese).</p>
+      <p>Nos dados, N = 2000 aleatório: Insertion faria da ordem de 10⁶ comparações; o OSJ faz
+      402 mil. A filiação do Shell à mesma família conceitual (“inserção em subestruturas com
+      convergência iterativa”) é reconhecida no relatório.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 15 ────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§5.2 · §5.3</b><span>Originalidade</span></div>
+    <h2>A variante rápida é a menos autoral</h2>
+
+    <div class="split even">
+      <div class="stack">
+        <p>A variante com <strong>testemunhas compartilhadas</strong> mede-se muito melhor —
+        expoente <span class="mono">1,17</span> contra <span class="mono">1,59</span>. A
+        investigação revelou que ela <strong>deixa de ser o algoritmo proposto</strong>.</p>
+        <div class="tw"><table>
+          <thead><tr><th>Variante · n = 2000</th><th class="n">Desloc.</th><th class="n">Inversões</th></tr></thead>
+          <tbody>
+            <tr class="me"><td>independentes</td><td class="n">274</td><td class="n">67.137</td></tr>
+            <tr><td>compartilhadas</td><td class="n">79</td><td class="n">12.368</td></tr>
+          </tbody>
+        </table></div>
+        <p class="claim bad">Com amostra comum, a estimativa vira função <strong>monótona</strong>
+        do valor — que é a fase de distribuição do <strong>Sample Sort</strong>. Declarada como
+        adaptação, não como contribuição própria.</p>
+      </div>
+      <div class="stack">
+        <h3>Os vizinhos publicados mais próximos</h3>
+        <div class="tw"><table>
+          <thead><tr><th>Método</th><th>Estima por</th><th class="n">Mapa</th></tr></thead>
+          <tbody>
+            <tr><td>ProxmapSort</td><td><em>map key</em> da chave</td><td class="n">monótono</td></tr>
+            <tr><td>Flashsort</td><td>interpolação linear</td><td class="n">monótono</td></tr>
+            <tr><td>Sample Sort</td><td>quantis de amostra</td><td class="n">monótono</td></tr>
+            <tr><td>Learned Sort</td><td>modelo da CDF</td><td class="n">monótono</td></tr>
+            <tr class="me"><td>OSJ</td><td><span class="mono">s</span> testemunhas <strong>por elemento</strong></td><td class="n">não monótono</td></tr>
+          </tbody>
+        </table></div>
+        <p class="claim">O que separa o OSJ da família inteira é <strong>uma única propriedade:
+        a estimativa não é função monótona do valor.</strong></p>
+      </div>
+    </div>
+
+    <div class="notes" hidden>
+      <b>Originalidade · 2min30 — o slide de honestidade</b>
+      <p>Este slide vale nos dois critérios de 10% (documentação/defesa e autoria/pensamento
+      crítico) e protege contra o critério de rejeito por plágio. Apresentá-lo como escolha
+      deliberada: <em>encontramos uma variante mais rápida, investigamos por que, descobrimos
+      que era Sample Sort, e a rebaixamos a termo de comparação</em>.</p>
+      <p>Três consequências da não-monotonicidade, se houver tempo: (1) a Fase 2 <strong>não
+      pode</strong> ser ordenação por balde, porque a desordem residual é global, não
+      intra-balde — é daí que a Sanfona vem; (2) o OSJ é <strong>comparison-only</strong>, não
+      faz aritmética sobre os valores, e Proxmap/Flashsort/Learned Sort exigem chave numérica;
+      (3) o preço é o expoente.</p>
+      <p>O Learned Sort (SIGMOD 2020) é o vizinho mais próximo — a descrição dos próprios
+      autores é a mesma decomposição em duas fases. Reconhecer a filiação em voz alta, e
+      reivindicar só a não-monotonicidade.</p>
+      <p>Se perguntarem “então isso já existe?”: a busca por métodos que estimem posto por
+      comparação contra testemunhas sorteadas <em>independentemente por elemento</em> não
+      retornou correspondência. É resultado negativo, não prova de inexistência — e está
+      declarado como tal.</p>
+      <p>A variante compartilhada fica no código (<span class="mono">my_authorial_sort_stable</span>)
+      por dois motivos legítimos: ela é <strong>estável</strong>, e serve de termo de comparação
+      para isolar o efeito da independência das amostras.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 16 ────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§6.1 · §6.2</b><span>Resultados · escalabilidade</span></div>
+    <h2>O expoente medido confirma a dedução</h2>
+
+    <div class="split">
+      <figure>
+        <svg viewBox="0 0 760 452" role="img" aria-label="Gráfico log-log do tempo de execução do OSJ contra o tamanho da entrada, de 250 a 10 mil elementos. Os sete pontos medidos acompanham de perto a reta de referência de inclinação cinco terços em toda a faixa testada.">
+          <g stroke="var(--rule)" stroke-width="1.6">
+            <line x1="92" y1="380" x2="690" y2="380"/>
+            <line x1="92" y1="280" x2="690" y2="280"/>
+            <line x1="92" y1="180" x2="690" y2="180"/>
+            <line x1="92" y1="80"  x2="690" y2="80"/>
+          </g>
+          <line x1="92" y1="40" x2="92" y2="380" stroke="currentColor" stroke-width="2"/>
+
+          <g font-family="JetBrains Mono, monospace" font-size="18" text-anchor="end" fill="currentColor">
+            <text x="82" y="386">1 ms</text>
+            <text x="82" y="286">10 ms</text>
+            <text x="82" y="186">100 ms</text>
+            <text x="82" y="86">1 s</text>
+          </g>
+
+          <g stroke="currentColor" stroke-width="1.8">
+            <line x1="110.8" y1="380" x2="110.8" y2="389"/>
+            <line x1="211.4" y1="380" x2="211.4" y2="389"/>
+            <line x1="312.1" y1="380" x2="312.1" y2="389"/>
+            <line x1="412.8" y1="380" x2="412.8" y2="389"/>
+            <line x1="513.4" y1="380" x2="513.4" y2="389"/>
+            <line x1="614.2" y1="380" x2="614.2" y2="389"/>
+            <line x1="646.5" y1="380" x2="646.5" y2="389"/>
+          </g>
+          <g font-family="JetBrains Mono, monospace" font-size="18" text-anchor="middle" fill="currentColor">
+            <text x="110.8" y="412">250</text>
+            <text x="211.4" y="412">500</text>
+            <text x="312.1" y="412">1k</text>
+            <text x="412.8" y="412">2k</text>
+            <text x="513.4" y="412">4k</text>
+            <text x="650" y="412">10k</text>
+          </g>
+          <text x="391" y="443" font-family="JetBrains Mono, monospace" font-size="16" letter-spacing="1.2" text-anchor="middle" fill="var(--ink-3)">N  (escala log-log)</text>
+
+          <line x1="92" y1="355" x2="690" y2="55" stroke="var(--ph2)" stroke-width="3" stroke-dasharray="10 6"/>
+          <text x="686" y="44" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="19" font-weight="700" fill="var(--ph2)">referência n^(5/3)</text>
+
+          <polyline points="110.8,343.3 211.4,290.7 312.1,242.4 412.8,192.2 513.4,142.3 614.2,92.6 646.5,70.9"
+                    fill="none" stroke="currentColor" stroke-width="3.2"/>
+          <g fill="var(--panel)" stroke="currentColor" stroke-width="3">
+            <circle cx="110.8" cy="343.3" r="7"/>
+            <circle cx="211.4" cy="290.7" r="7"/>
+            <circle cx="312.1" cy="242.4" r="7"/>
+            <circle cx="412.8" cy="192.2" r="7"/>
+            <circle cx="513.4" cy="142.3" r="7"/>
+            <circle cx="614.2" cy="92.6"  r="7"/>
+            <circle cx="646.5" cy="70.9"  r="7"/>
+          </g>
+          <text x="146" y="330" font-family="JetBrains Mono, monospace" font-size="19" font-weight="700" fill="currentColor">OSJ medido</text>
+        </svg>
+        <figcaption>Em log-log, <span class="mono">T(n) ~ c·n<sup>k</sup></span> vira reta de
+        inclinação <span class="mono">k</span>. Sete tamanhos, 5 repetições, semente fixa.</figcaption>
+      </figure>
+
+      <div class="stack">
+        <div class="stats col">
+          <div class="stat a2"><span class="v">1,667</span><span class="l">previsto pela análise</span></div>
+          <div class="stat"><span class="v">1,641</span><span class="l">medido · comparações · N ≤ 10⁴</span></div>
+          <div class="stat"><span class="v">1,678</span><span class="l">medido · tempo · N ≤ 10⁴</span></div>
+        </div>
+        <p class="claim">O expoente do <strong>tempo</strong> corrobora a dedução por um eixo
+        <em>independente das contagens</em>.</p>
+      </div>
+    </div>
+
+    <div class="notes" hidden>
+      <b>Escalabilidade · 2min</b>
+      <p>Explicar a leitura log-log antes de mostrar números: reta, inclinação = expoente.
+      Depois o argumento de convergência: 1,591 em N ≤ 2000, 1,641 em N ≤ 10⁴ — <em>anda na
+      direção do 1,667</em>, e isso é o comportamento esperado de termos de ordem inferior
+      perdendo peso, não uma discrepância.</p>
+      <p>Ponto forte a não perder: o expoente do <strong>tempo</strong> (1,678) é um eixo
+      independente. Se a convenção de contagem estivesse inflando algo, o tempo não seguiria. É
+      também a única das três métricas sensível às condições da máquina.</p>
+      <p>Se perguntarem por que parou em 10⁴: uma execução leva ~1,2 s, ~6 s para as 5
+      repetições, e a dobra seguinte custaria ~3× isso. O ajuste já estabilizou; a distância
+      remanescente é de termos de ordem inferior, não de expoente.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 17 ────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§6.3</b><span>Resultados · o nicho</span></div>
+    <h2>Uma classe intermediária, e ela estava vazia</h2>
+
+    <figure class="fig-mid">
+      <svg viewBox="0 0 760 250" role="img" aria-label="Reta dos expoentes empíricos medidos na distribuição aleatória. Quick, Merge e DPES agrupam-se entre 1,18 e 1,34; Insertion, Selection e Bubble agrupam-se entre 1,96 e 2,03. O OSJ, em 1,591, é o único ponto na faixa intermediária, junto à referência teórica de cinco terços.">
+        <rect x="70" y="128" width="218" height="40" fill="var(--rule)" opacity="0.6"/>
+        <text x="179" y="119" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" letter-spacing="1" fill="var(--ink-3)">FAIXA n log n</text>
+        <rect x="560" y="128" width="110" height="40" fill="var(--rule)" opacity="0.6"/>
+        <text x="615" y="119" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" letter-spacing="1" fill="var(--ink-3)">FAIXA n²</text>
+
+        <rect x="288" y="128" width="272" height="40" fill="var(--ph2-soft)"/>
+        <text x="424" y="119" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" letter-spacing="1" font-weight="700" fill="var(--ph2)">A FAIXA VAZIA</text>
+
+        <line x1="70" y1="148" x2="678" y2="148" stroke="currentColor" stroke-width="2.2"/>
+        <g stroke="currentColor" stroke-width="1.8">
+          <line x1="70"    y1="148" x2="70"    y2="158"/>
+          <line x1="215.5" y1="148" x2="215.5" y2="158"/>
+          <line x1="433.6" y1="148" x2="433.6" y2="158"/>
+          <line x1="615.5" y1="148" x2="615.5" y2="158"/>
+        </g>
+        <g font-family="JetBrains Mono, monospace" font-size="17" text-anchor="middle" fill="currentColor">
+          <text x="70"    y="196">1,0</text>
+          <text x="215.5" y="196">1,3</text>
+          <text x="433.6" y="196">5/3</text>
+          <text x="615.5" y="196">2,0</text>
+        </g>
+        <text x="374" y="228" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" letter-spacing="1.2" fill="var(--ink-3)">EXPOENTE EMPÍRICO DAS COMPARAÇÕES · ENTRADA ALEATÓRIA</text>
+
+        <line x1="433.6" y1="128" x2="433.6" y2="168" stroke="var(--ph2)" stroke-width="2" stroke-dasharray="5 4"/>
+
+        <g font-family="JetBrains Mono, monospace" font-size="17">
+          <line x1="170.9" y1="148" x2="170.9" y2="60" stroke="var(--ink-3)" stroke-width="1.2"/>
+          <text x="164" y="50" text-anchor="middle" fill="currentColor">Quick 1,185</text>
+          <line x1="216.7" y1="148" x2="216.7" y2="90" stroke="var(--ink-3)" stroke-width="1.2"/>
+          <text x="228" y="80" text-anchor="middle" fill="currentColor">Merge 1,269</text>
+          <line x1="255.5" y1="148" x2="255.5" y2="118" stroke="var(--ink-3)" stroke-width="1.2"/>
+          <text x="272" y="110" text-anchor="middle" fill="currentColor">DPES 1,340</text>
+        </g>
+
+        <g font-family="JetBrains Mono, monospace" font-size="17">
+          <line x1="593.6" y1="148" x2="593.6" y2="118" stroke="var(--ink-3)" stroke-width="1.2"/>
+          <text x="576" y="110" text-anchor="middle" fill="currentColor">Insertion 1,960</text>
+          <line x1="626.9" y1="148" x2="626.9" y2="90" stroke="var(--ink-3)" stroke-width="1.2"/>
+          <text x="638" y="80" text-anchor="middle" fill="currentColor">Selection 2,021</text>
+          <line x1="631.8" y1="148" x2="631.8" y2="60" stroke="var(--ink-3)" stroke-width="1.2"/>
+          <text x="668" y="50" text-anchor="middle" fill="currentColor">Bubble 2,030</text>
+        </g>
+
+        <line x1="392.4" y1="148" x2="392.4" y2="100" stroke="var(--ph2)" stroke-width="2.6"/>
+        <text x="392.4" y="90" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="22" font-weight="700" fill="var(--ph2)">OSJ 1,591</text>
+
+        <g fill="currentColor">
+          <circle cx="170.9" cy="148" r="6"/>
+          <circle cx="216.7" cy="148" r="6"/>
+          <circle cx="255.5" cy="148" r="6"/>
+          <circle cx="593.6" cy="148" r="6"/>
+          <circle cx="626.9" cy="148" r="6"/>
+          <circle cx="631.8" cy="148" r="6"/>
+        </g>
+        <circle cx="392.4" cy="148" r="10" fill="var(--ph2)"/>
+      </svg>
+    </figure>
+
+    <div class="split even">
+      <div class="tw"><table>
+        <thead><tr><th>Comparações · random</th><th class="n">N=500</th><th class="n">N=1000</th><th class="n">N=2000</th></tr></thead>
+        <tbody>
+          <tr><td>Bubble Sort</td><td class="n">124.399</td><td class="n">498.093</td><td class="n">—</td></tr>
+          <tr><td>Insertion Sort</td><td class="n">63.278</td><td class="n">248.229</td><td class="n">—</td></tr>
+          <tr class="me"><td>OSJ</td><td class="n">41.650</td><td class="n">129.729</td><td class="n">402.550</td></tr>
+          <tr><td>Merge Sort</td><td class="n">3.865</td><td class="n">8.709</td><td class="n">19.426</td></tr>
+        </tbody>
+      </table></div>
+      <p class="claim">O OSJ ocupa <strong>exatamente o nicho previsto pela teoria</strong>:
+      superior aos quadráticos a partir de <span class="mono">N ≈ 300</span>, inferior aos
+      <span class="mono">n log n</span>.</p>
+    </div>
+
+    <div class="notes" hidden>
+      <b>O nicho · 2min</b>
+      <p>A reta dos expoentes é o gráfico a defender: ela mostra que a classe
+      <span class="mono">n^(5/3)</span> não é um número arbitrário, é uma faixa que os
+      clássicos não ocupam, e o OSJ cai nela por dedução, não por ajuste.</p>
+      <p>Antecipar a objeção honesta: “então é pior que Merge e Quick”. Sim, e o relatório diz
+      isso na §5.2 — <em>o OSJ não compete com o Merge, nem pretende</em>. Lembrar a regra de
+      ouro do enunciado: performance bruta não é o critério.</p>
+      <p>O cruzamento com o Insertion ocorre cedo porque o termo <span class="mono">n·s</span>
+      é linear em <span class="mono">n</span> para <span class="mono">s</span> fixo, enquanto o
+      <span class="mono">Inv</span> do Insertion cresce quadraticamente. Os quadráticos são
+      omitidos em N = 2000 por custo proibitivo — o regime já está inequívoco.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 18 ────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§6.4</b><span>Resultados · o achado mais informativo</span></div>
+    <h2>O OSJ é quase insensível à ordem da entrada</h2>
+
+    <div class="split">
+      <figure>
+        <svg viewBox="0 0 760 310" role="img" aria-label="Comparação da sensibilidade à distribuição em N igual a mil. As três barras do OSJ para entrada ordenada, aleatória e reversa têm praticamente a mesma altura. As três barras do Insertion Sort variam de quase zero para entrada ordenada até o dobro do caso aleatório na entrada reversa.">
+          <line x1="96" y1="240" x2="706" y2="240" stroke="currentColor" stroke-width="2"/>
+          <g stroke="var(--rule)" stroke-width="1.6">
+            <line x1="96" y1="140" x2="706" y2="140"/>
+            <line x1="96" y1="40"  x2="706" y2="40"/>
+          </g>
+          <g font-family="JetBrains Mono, monospace" font-size="17" text-anchor="end" fill="currentColor">
+            <text x="86" y="246">0</text>
+            <text x="86" y="146">250 mil</text>
+            <text x="86" y="46">500 mil</text>
+          </g>
+
+          <rect x="132" y="189.4" width="54" height="50.6" fill="var(--ph2)"/>
+          <rect x="194" y="188.1" width="54" height="51.9" fill="var(--ph2)"/>
+          <rect x="256" y="187.3" width="54" height="52.7" fill="var(--ph2)"/>
+          <g font-family="JetBrains Mono, monospace" font-size="15" text-anchor="middle" fill="currentColor">
+            <text x="159" y="262">sorted</text><text x="221" y="262">random</text><text x="283" y="262">reverse</text>
+            <text x="159" y="180">126,5k</text><text x="221" y="179">129,7k</text><text x="283" y="178">131,9k</text>
+          </g>
+          <text x="221" y="292" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="19" letter-spacing="1.2" font-weight="700" fill="var(--ph2)">OSJ</text>
+          <path d="M132,160 h178" fill="none" stroke="var(--ph2)" stroke-width="2"/>
+          <text x="221" y="150" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="17" font-weight="700" fill="var(--ph2)">4% de variação</text>
+
+          <line x1="372" y1="20" x2="372" y2="276" stroke="var(--rule)" stroke-width="1.8"/>
+
+          <rect x="432" y="237" width="54" height="3" fill="var(--ph1)"/>
+          <rect x="494" y="140.7" width="54" height="99.3" fill="var(--ph1)"/>
+          <rect x="556" y="40.2" width="54" height="199.8" fill="var(--ph1)"/>
+          <g font-family="JetBrains Mono, monospace" font-size="15" text-anchor="middle" fill="currentColor">
+            <text x="459" y="262">sorted</text><text x="521" y="262">random</text><text x="583" y="262">reverse</text>
+            <text x="459" y="229">999</text><text x="521" y="132">248,2k</text><text x="583" y="32">499,5k</text>
+          </g>
+          <text x="521" y="292" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="19" letter-spacing="1.2" font-weight="700" fill="var(--ph1)">INSERTION</text>
+          <text x="632" y="200" font-family="JetBrains Mono, monospace" font-size="17" font-weight="700" fill="var(--ph1)">500× de</text>
+          <text x="632" y="220" font-family="JetBrains Mono, monospace" font-size="17" font-weight="700" fill="var(--ph1)">variação</text>
+        </svg>
+        <figcaption>Mesmos vetores, mesma convenção, <span class="mono">N = 1000</span>. O
+        Insertion é <strong>adaptativo</strong>; o OSJ não colhe nem é arruinado.</figcaption>
+      </figure>
+
+      <div class="stack">
+        <h3 class="qx">A leitura desfavorável</h3>
+        <p>É o resultado mais informativo do trabalho, e é <strong>contra o algoritmo</strong>.
+        O termo dominante <span class="mono">n·s</span> é pago incondicionalmente, e não olha
+        para a ordem da entrada.</p>
+        <h3 class="q2">A mesma medição, leitura favorável</h3>
+        <p>A cota é <span class="mono">E[T] = Θ(n<sup>5/3</sup>)</span> para <em>toda</em>
+        entrada. Uma cota assim <strong>prevê</strong> que trocar a distribuição não mova o
+        custo.</p>
+        <p class="claim">As duas faces de a Sondagem ser incondicional.</p>
+      </div>
+    </div>
+
+    <div class="notes" hidden>
+      <b>Insensibilidade · 2min — o slide que demonstra pensamento crítico</b>
+      <p>Apresentar o achado desfavorável <strong>antes</strong> da leitura favorável, nunca o
+      contrário. A ordem importa: quem abre com a desculpa parece estar se defendendo; quem abre
+      com a limitação e depois mostra que o mesmo dado sustenta a cota parece dominar o próprio
+      trabalho.</p>
+      <p>Frase de ligação: “o mesmo número que mostra que o OSJ não é adaptativo é o número que
+      mostra que a cota vale uniformemente”.</p>
+      <p><strong>Cuidado com os N:</strong> o gráfico é N=1000 (≈4% de variação). Os 3% citados
+      na §6.4 são de N=2000: sorted 397.562, random 402.550, reverse 409.441 — o reverso custa
+      1,7% a mais que o aleatório. Não trocar um pelo outro sob pergunta.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 19 ────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§6.5</b><span>Validação de corretude</span></div>
+    <h2>44 testes, todos aprovados</h2>
+    <div class="split even">
+      <div class="stack">
+        <h3>Cenários obrigatórios da disciplina</h3>
+        <p>Os <strong>10 cenários</strong> do <span class="mono">test_suite.py</span> do pacote,
+        aplicados a <strong>três alvos</strong>: OSJ padrão, OSJ estável e a
+        <strong>Sanfona isolada</strong> — o algoritmo sem a Fase 1.</p>
+        <ul>
+          <li>Casos limite <span class="mono">N = 0</span> e <span class="mono">N = 1</span>;
+          elementos idênticos; negativos; ponto flutuante</li>
+          <li>Robustez a <span class="mono">w</span> arbitrário, de 2 a 500</li>
+          <li>60 execuções aleatórias independentes</li>
+        </ul>
+      </div>
+      <div class="stack">
+        <h3>Testes que verificam a <em>teoria</em>, não só a saída</h3>
+        <ul>
+          <li><strong>Sabotagem da Fase 1</strong> (<span class="mono">s = 1</span>) — a
+          corretude não depende dela</li>
+          <li><strong>Contraexemplo <span class="mono">[3,4,1,2]</span></strong> — disjuntas
+          <em>devem</em> falhar, sobrepostas <em>devem</em> acertar</li>
+          <li><strong><span class="mono">trocas = Inv(A₀)</span></strong> — igualdade exata, em
+          quatro distribuições</li>
+          <li><strong>Lema do avanço</strong> — medido varredura a varredura, em quatro larguras</li>
+        </ul>
+        <p class="claim">Os teoremas do relatório não são só argumentados — são
+        <strong>verificados por instrumentação</strong>.</p>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat a2"><span class="v">44</span><span class="l">testes · unittest</span></div>
+      <div class="stat"><span class="v">3</span><span class="l">alvos independentes</span></div>
+      <div class="stat"><span class="v">5</span><span class="l">distribuições</span></div>
+      <div class="stat"><span class="v">0</span><span class="l">dependências externas</span></div>
+    </div>
+    <div class="notes" hidden>
+      <b>Validação · 1min30</b>
+      <p>Vale 25% da nota (“Corretude e Validação Experimental”) e é o critério de rejeito mais
+      direto. Duas coisas a dizer bem:</p>
+      <p><strong>1.</strong> A suíte obrigatória roda contra a <em>Sanfona isolada</em> também.
+      Isso é o que transforma a tese do slide 3 de argumento em verificação.</p>
+      <p><strong>2.</strong> Há testes de <em>teoria</em>. Se um teorema do relatório estiver
+      errado, a suíte quebra.</p>
+      <p>Reprodutibilidade, se perguntarem: <span class="mono">random.seed(42)</span>,
+      <span class="mono">uv.lock</span> versionado fixando as 13 transitivas, e
+      <span class="mono">resultados/</span> versionado como evidência primária. O algoritmo é
+      stdlib-puro — roda em qualquer Python 3.11 limpo, sem instalar nada.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 20 ────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§7</b><span>Limitações — e onde seriam atacadas</span></div>
+    <h2>O que o método não faz</h2>
+    <div class="cols four">
+      <div class="phase one">
+        <span class="tag">limitação principal</span>
+        <span class="name">Sem adaptatividade</span>
+        <p>Paga <span class="mono">n·s</span> mesmo num vetor já ordenado. Uma verificação
+        prévia em <span class="mono">O(n)</span> recuperaria o melhor caso
+        <span class="mono">Θ(n)</span> sem afetar o caso médio.</p>
+      </div>
+      <div class="phase">
+        <span class="tag">barreira estrutural</span>
+        <span class="name">Os <span class="mono">n log n</span> são superiores</span>
+        <p>O ganho de <span class="mono">s</span> além de
+        <span class="mono">n<sup>2/3</sup></span> é anulado pelo custo da própria sondagem. É
+        estrutural, não de implementação.</p>
+      </div>
+      <div class="phase">
+        <span class="tag">espaço</span>
+        <span class="name">Θ(n) na Fase 1</span>
+        <p>Uma distribuição por permutação cíclica in-place eliminaria os baldes, ao custo de
+        perder a estabilidade da distribuição.</p>
+      </div>
+      <div class="phase">
+        <span class="tag">conflito de propriedades</span>
+        <span class="name">Estabilidade × independência</span>
+        <p>Independência sustenta a análise limpa; estabilidade exige estimativas idênticas
+        para chaves iguais. Um desempate por índice original poderia reconciliá-las.</p>
+      </div>
+    </div>
+    <p class="claim warn">E uma folga admitida na própria prova: a cota
+    <span class="mono">D ≤ 2εn</span> de Hoeffding é <strong>frouxa</strong> — o deslocamento
+    real medido fica bem abaixo do previsto.</p>
+    <div class="notes" hidden>
+      <b>Limitações · 1min30</b>
+      <p>Não pedir desculpa por nenhuma delas. Apresentar cada uma com o <em>caminho de
+      ataque</em> ao lado — é o que distingue “sei que tem um problema” de “sei o que faria”.</p>
+      <p>A folga do Hoeffding é a mais sofisticada de admitir: reconhece que a própria prova é
+      conservadora e nomeia a ferramenta que a apertaria — análise via estatísticas de ordem em
+      vez de união sobre Hoeffding, o que daria um expoente ótimo ligeiramente diferente. Se
+      sobrar tempo, é aqui que se gasta.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 21 ────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><b>§8</b><span>Declaração de autoria e uso de IA</span></div>
+    <h2>Transparência sobre a ferramenta</h2>
+    <p class="lead"><strong>Claude (Anthropic), modelo Opus</strong> — parceiro de discussão na
+    concepção, orientação nas provas, e aceleração de implementação e redação.</p>
+    <div class="split even">
+      <div class="stack">
+        <h3>O que os alunos estabeleceram</h3>
+        <ul>
+          <li>A <strong>escolha da direção</strong> entre cinco candidatas de mecanismo autoral</li>
+          <li>A <strong>separação de responsabilidades</strong> entre as fases, e a observação de
+          que os elementos não movidos preservam suas relações — as duas peças conceituais da
+          prova de término</li>
+          <li>Revisão crítica em <strong>09/09/2026</strong>, item a item contra o enunciado,
+          registrada com data em <span class="mono">docs/grills_logs/</span></li>
+        </ul>
+      </div>
+      <div class="stack">
+        <h3>Correções determinadas nessa revisão</h3>
+        <ul>
+          <li><strong>Lema do avanço</strong> — sustentava a análise <em>sem estar provado</em></li>
+          <li><strong>Pior caso</strong> — a justificativa do <span class="mono">O(n²)</span>
+          estava incorreta</li>
+          <li><strong>Regimes probabilísticos</strong> — esperança e alta probabilidade estavam
+          misturadas</li>
+          <li><strong>Escala e repetições</strong> — expoente até <span class="mono">10⁴</span>;
+          3 → 5 repetições, com desvio-padrão</li>
+          <li><strong>Recusa do port em C++</strong>, fundamentada</li>
+        </ul>
+        <p class="claim">Três das cinco corrigem <strong>erros técnicos reais</strong> na
+        análise. Nenhuma reescrita cosmética.</p>
+      </div>
+    </div>
+    <p class="byline">Bruno da Silva Rocha &nbsp;·&nbsp; Pietro M. Prauchner</p>
+    <div class="notes" hidden>
+      <b>Declaração · 1min30 — obrigatória, e critério de rejeito se ausente</b>
+      <p>Não passar rápido por medo. A declaração é <em>exigida</em>, e uma declaração detalhada
+      e honesta pontua nos 10% de “Declaração de Autoria e Pensamento Crítico”. Uma declaração
+      vaga é o que penaliza.</p>
+      <p>O que carrega este slide é a coluna das <strong>correções</strong>: três delas
+      corrigem erros técnicos reais na análise. Isso é a evidência de domínio, e é o antídoto
+      para “desconhecimento substancial da solução”.</p>
+      <p>Se perguntarem diretamente “quanto disso é seu?”: a tabela do §8 não infla o papel dos
+      alunos — a implementação e a redação estão declaradas como da ferramenta; a concepção, a
+      escolha de direção, as duas peças da prova de término e as cinco correções estão
+      declaradas como dos alunos. A defesa oral é a prova.</p>
+      <p>Fontes reconhecidas: Hoeffding, Sample Sort, ProxmapSort, Flashsort, Learned Sort,
+      Shell Sort e a literatura de ordenação adaptativa.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 22 ────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="inner">
+    <div class="eyebrow"><span>Encerramento</span></div>
+    <h2>O que o OSJ é, em três frases</h2>
+    <div class="stack">
+      <p class="claim warn"><strong>Uma aposta estatística</strong> — cada elemento estima seu
+      posto contra <span class="mono">s</span> testemunhas sorteadas. Custa
+      <span class="mono">Θ(n·s)</span> e pode errar.</p>
+      <p class="claim"><strong>Um reparo que não pode errar</strong> — janela
+      <span class="mono">w</span>, passo <span class="mono">w/2</span>, até o ponto fixo. E o
+      único ponto fixo é o vetor ordenado.</p>
+      <p class="claim" style="border-left-color:var(--ink)"><strong>Uma classe intermediária,
+      deduzida e medida</strong> — equilibrar as fases dá
+      <span class="mono">Θ(n<sup>5/3</sup>)</span>; o expoente medido é
+      <span class="mono">1,64</span>.</p>
+    </div>
+    <div class="stats">
+      <div class="stat a2"><span class="v">Θ(n<sup>5/3</sup>)</span><span class="l">esperança · toda entrada</span></div>
+      <div class="stat"><span class="v">O(n²)</span><span class="l">pior caso, derivado</span></div>
+      <div class="stat"><span class="v">44/44</span><span class="l">testes</span></div>
+    </div>
+    <p class="byline">Bruno da Silva Rocha &nbsp;·&nbsp; Pietro M. Prauchner
+      <span>&nbsp;&nbsp;|&nbsp;&nbsp; relatório, código e suíte: README.md · python/ · resultados/</span></p>
+    <div class="notes" hidden>
+      <b>Fechamento · 40s</b>
+      <p>Três frases, e parar. Não recapitular a apresentação inteira.</p>
+      <p><strong>A frase para deixar no ar</strong>, se houver só uma: “a fase que pode errar
+      nunca é a fase que decide a corretude”. É a contribuição de projeto, e é o que se defende
+      sob arguição.</p>
+      <p>Perguntas prováveis e onde está a resposta: <em>“como garante corretude sendo
+      aleatório?”</em> → slide 3 + a Sanfona isolada. <em>“isso não é Shell/Sample/Learned
+      Sort?”</em> → slide 15, a não-monotonicidade. <em>“por que 5/3?”</em> → slide 11, a
+      derivada. <em>“por que não é adaptativo?”</em> → slide 18, e é limitação admitida.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div id="bar">
+  <span id="count"><b>1</b> / 22</span>
+  <div id="rail"><div id="fill"></div></div>
+  <button class="btn" id="notesBtn" aria-pressed="false">Notas<kbd>N</kbd></button>
+  <button class="btn" id="fsBtn">Tela cheia<kbd>F</kbd></button>
+</div>
+
+<script>
+(function () {
+  var deck   = document.getElementById('deck');
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var inners = slides.map(function (s) { return s.querySelector('.inner'); });
+  var notes  = Array.prototype.slice.call(document.querySelectorAll('.notes'));
+  var countB = document.querySelector('#count b');
+  var fill   = document.getElementById('fill');
+  var nBtn   = document.getElementById('notesBtn');
+  var fBtn   = document.getElementById('fsBtn');
+  var cur    = 0;
+
+  /* Auto-ajuste como REDE DE SEGURANÇA, não como mecanismo de encaixe: o
+     conteúdo de cada slide é orçado para caber em escala 1,0. O piso alto
+     garante que nada seja reduzido a ponto de ficar ilegível de longe; se
+     um slide passar do piso, ele rola internamente em vez de encolher. */
+  var MIN_SCALE = 0.85;
+
+  function fitOne(slide, inner) {
+    if (!inner) return;
+    if (window.matchMedia('(max-width: 760px)').matches) {
+      inner.style.transform = '';
+      slide.style.overflowY = '';
+      return;
+    }
+    inner.style.transform = '';
+    slide.style.overflowY = 'hidden';
+    var cs    = getComputedStyle(slide);
+    var avail = slide.clientHeight
+              - parseFloat(cs.paddingTop)
+              - parseFloat(cs.paddingBottom);
+    var need  = inner.scrollHeight;
+    if (need <= avail || need === 0) return;
+    var k = avail / need;
+    if (k < MIN_SCALE) {
+      k = MIN_SCALE;
+      slide.style.overflowY = 'auto';
+    }
+    inner.style.transform = 'scale(' + k.toFixed(4) + ')';
+  }
+
+  function fitAll() {
+    for (var i = 0; i < slides.length; i++) fitOne(slides[i], inners[i]);
+  }
+
+  function mark(i) {
+    cur = i;
+    countB.textContent = String(i + 1);
+    fill.style.width = ((i + 1) / slides.length * 100) + '%';
+  }
+
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting && e.intersectionRatio > 0.5) {
+          mark(slides.indexOf(e.target));
+        }
+      });
+    }, { root: deck, threshold: [0.5] });
+    slides.forEach(function (s) { io.observe(s); });
+  }
+
+  function go(i) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    slides[i].scrollIntoView({ block: 'start' });
+    mark(i);
+  }
+
+  var showNotes = false;
+  function setNotes(on) {
+    showNotes = on;
+    notes.forEach(function (n) { n.hidden = !on; });
+    nBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    fitAll();
+    slides[cur].scrollIntoView({ block: 'start' });
+  }
+  nBtn.addEventListener('click', function () { setNotes(!showNotes); });
+
+  function fullscreen() {
+    var el = document.documentElement;
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      return;
+    }
+    var req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!req) { fBtn.textContent = 'Abra em nova aba'; return; }
+    var r = req.call(el);
+    if (r && r.catch) {
+      r.catch(function () { fBtn.textContent = 'Abra em nova aba'; });
+    }
+  }
+  fBtn.addEventListener('click', fullscreen);
+
+  function onFsChange() {
+    var on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    document.body.classList.toggle('fs', on);
+    fBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    setTimeout(function () {
+      fitAll();
+      slides[cur].scrollIntoView({ block: 'start' });
+    }, 120);
+  }
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
+
+  document.addEventListener('keydown', function (e) {
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    var k = e.key;
+    if (k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ') {
+      e.preventDefault(); go(cur + 1);
+    } else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp') {
+      e.preventDefault(); go(cur - 1);
+    } else if (k === 'Home') {
+      e.preventDefault(); go(0);
+    } else if (k === 'End') {
+      e.preventDefault(); go(slides.length - 1);
+    } else if (k === 'n' || k === 'N') {
+      setNotes(!showNotes);
+    } else if (k === 'f' || k === 'F') {
+      fullscreen();
+    }
+  });
+
+  var t;
+  window.addEventListener('resize', function () {
+    clearTimeout(t);
+    t = setTimeout(function () {
+      fitAll();
+      slides[cur].scrollIntoView({ block: 'start' });
+    }, 140);
+  });
+
+  // As fontes do Google mudam as métricas ao carregar; reajustar depois.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(fitAll);
+  }
+  window.addEventListener('load', fitAll);
+
+  fitAll();
+  mark(0);
+})();
+</script>

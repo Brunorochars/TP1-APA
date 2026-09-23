@@ -27,6 +27,7 @@ from osj import (
     Stats,
     inversions,
     max_displacement,
+    max_left_displacement,
     my_authorial_sort,
     my_authorial_sort_stable,
     osj_sort,
@@ -266,6 +267,79 @@ class TestTheory(unittest.TestCase):
         self.assertLess(depois, antes / 4.0,
                         "a sondagem deveria reduzir substancialmente o "
                         "deslocamento: antes={0}, depois={1}".format(antes, depois))
+
+    def test_each_sweep_advances_half_a_window(self):
+        """Lema do avanco (Secao 4.2 do relatorio).
+
+        Enquanto o deslocamento a esquerda exceder w/2, cada varredura o
+        reduz em pelo menos w/2; a varredura que encerra a Fase 2 fecha em
+        zero. Dirige uma varredura por vez pela funcao privada _sweep, porque
+        o laco ate o ponto fixo tornaria o estado intermediario inobservavel.
+        Mais de uma largura de janela, para nao verificar coincidencia de w.
+        """
+        from osj import _phase1_independent, _sweep
+
+        random.seed(29)
+        n = 240
+        sabotada = _phase1_independent(
+            [random.randint(0, 999) for _ in range(n)], 1, random, Stats())
+        casos = {
+            "reverso": list(range(n, 0, -1)),
+            "sondagem sabotada com s=1": sabotada,
+        }
+
+        for nome, data in casos.items():
+            for w in (4, 9, 16, 40):
+                passo = w // 2
+                a = list(data)
+                st = Stats()
+                antes = max_left_displacement(a)
+                while True:
+                    movimentou = _sweep(a, w, st)
+                    depois = max_left_displacement(a)
+                    if antes > passo:
+                        self.assertLessEqual(
+                            depois, antes - passo,
+                            "lema do avanco (Sec. 4.2) violado: uma varredura "
+                            "deveria reduzir o deslocamento a esquerda em pelo "
+                            "menos w/2={0}, mas foi de {1} para {2} em '{3}' "
+                            "com w={4}".format(passo, antes, depois, nome, w))
+                    antes = depois
+                    if not movimentou:
+                        break
+                self.assertEqual(
+                    antes, 0,
+                    "a varredura sem troca de vizinhos deveria fechar o "
+                    "deslocamento a esquerda em zero (Sec. 3.2); sobrou {0} "
+                    "em '{1}' com w={2}".format(antes, nome, w))
+                self.assertEqual(a, sorted(data),
+                                 "'{0}' com w={1}".format(nome, w))
+
+    def test_passes_are_bounded_by_the_advance_lemma(self):
+        """Limite de varreduras que sustenta o pior caso (Secao 4.3).
+
+        O lema do avanco da P <= ceil(Dis_esq / floor(w/2)) + 1, e como
+        Dis_esq < n isso vale P <= 2n/w + 2. Aqui a Sondagem e sabotada com
+        s = 1 para entregar a Fase 2 um vetor quase maximamente desordenado
+        sem depender de sorte, e a constante usada na asserticao e 4 - o
+        dobro da que o lema prova, para nao transformar variacao amostral em
+        falha. Observado nesta suite: entre 1,4 e 1,95 vezes n/w.
+
+        Usa o contador publico Stats.passes apos ordenacao completa, como o
+        teste do melhor caso ja faz.
+        """
+        constante = 4.0
+        for n in (200, 400, 800, 1600, 3000):
+            random.seed(31)
+            data = [random.randint(0, 10 * n) for _ in range(n)]
+            out, st = osj_sort(data, s=1)
+            self.assertEqual(out, sorted(data), "n={0}".format(n))
+            limite = constante * n / st.w + 2
+            self.assertLessEqual(
+                st.passes, limite,
+                "o pior caso O(n^2) da Secao 4.3 depende de P = O(n/w) pelo "
+                "lema do avanco; com n={0} e w={1} isso da no maximo {2:.1f} "
+                "varreduras, mas foram {3}".format(n, st.w, limite, st.passes))
 
 
 if __name__ == "__main__":
