@@ -648,8 +648,13 @@ Nenhuma reescrita cosmética foi feita sobre o texto da ferramenta: as alteraç�
 ```
 TP1-APA/
 ├── README.md                    este relatório
+├── CONTEXT.md                   glossário de domínio
 ├── pyproject.toml               dependências (uv): apenas matplotlib
 ├── uv.lock                      versões exatas, para reprodutibilidade
+├── docs/
+│   ├── adr/                     decisões de projeto e seus porquês
+│   ├── apresentacao/            roteiros e slides da defesa oral
+│   └── grills_logs/             log da revisão de conformidade (§8)
 ├── python/
 │   ├── osj.py                   ← algoritmo autoral (implementação e documentação)
 │   ├── test_osj.py              ← suíte de 44 testes
@@ -660,6 +665,7 @@ TP1-APA/
 │   ├── classical.py             baselines fornecidos pela disciplina
 │   ├── authorial.py             DPES de referência (fornecido)
 │   ├── benchmark.py             framework fornecido
+│   ├── metrics.py               métricas fornecidas
 │   └── test_suite.py            suíte fornecida
 └── resultados/
     ├── benchmark_osj.csv        dados brutos
