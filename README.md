@@ -1,6 +1,6 @@
 # OSJ — Ordenação por Sondagem e Janelas
 
-**Trabalho Prático 1 — Análise e Projeto de Algoritmos**
+**Trabalho Prático 1 — Análise e Projeto de Algoritmos**\
 Alunos: Bruno da Silva Rocha · Pietro M. Prauchner
 
 ---
