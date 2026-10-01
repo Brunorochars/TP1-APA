@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulação do OSJ</title>
+<style>
+:root {
+  --bg: #f6f6f4; --panel: #ffffff; --fg: #1d1d1f; --muted: #6b6b72; --line: #e1e1de;
+  --bar: #97a3b4; --bar-dim: #d5d9df; --focus: #2563eb; --less: #16a34a; --geq: #ea580c;
+  --win: rgba(37, 99, 235, .09); --win-line: #2563eb; --ovl: rgba(147, 51, 234, .17); --ovl-line: #9333ea;
+  --ok: #16a34a; --bad: #dc2626;
+  --info-bg: #eff6ff; --info-fg: #1e40af; --warn-bg: #fff7ed; --warn-fg: #9a3412;
+  --ok-bg: #f0fdf4; --ok-fg: #166534; --bad-bg: #fef2f2; --bad-fg: #991b1b;
+  --btn: #f1f1ef; --btn-hover: #e7e7e4;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141416; --panel: #1d1d20; --fg: #ececef; --muted: #9a9aa3; --line: #303035;
+    --bar: #6f7c8f; --bar-dim: #3a3f47; --focus: #60a5fa; --less: #4ade80; --geq: #fb923c;
+    --win: rgba(96, 165, 250, .12); --win-line: #60a5fa; --ovl: rgba(192, 132, 252, .20); --ovl-line: #c084fc;
+    --ok: #4ade80; --bad: #f87171;
+    --info-bg: #172036; --info-fg: #bfdbfe; --warn-bg: #2d1c10; --warn-fg: #fed7aa;
+    --ok-bg: #11261a; --ok-fg: #bbf7d0; --bad-bg: #2d1414; --bad-fg: #fecaca;
+    --btn: #2a2a2e; --btn-hover: #35353a;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141416; --panel: #1d1d20; --fg: #ececef; --muted: #9a9aa3; --line: #303035;
+  --bar: #6f7c8f; --bar-dim: #3a3f47; --focus: #60a5fa; --less: #4ade80; --geq: #fb923c;
+  --win: rgba(96, 165, 250, .12); --win-line: #60a5fa; --ovl: rgba(192, 132, 252, .20); --ovl-line: #c084fc;
+  --ok: #4ade80; --bad: #f87171;
+  --info-bg: #172036; --info-fg: #bfdbfe; --warn-bg: #2d1c10; --warn-fg: #fed7aa;
+  --ok-bg: #11261a; --ok-fg: #bbf7d0; --bad-bg: #2d1414; --bad-fg: #fecaca;
+  --btn: #2a2a2e; --btn-hover: #35353a;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main { max-width: 1180px; margin: 0 auto; padding: 14px 16px 24px; }
+header h1 { margin: 0; font-size: 22px; }
+header p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; margin-top: 14px; }
+.controls label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.controls .dim { opacity: .45; }
+select, input[type=number] {
+  font: inherit; font-size: 14px; background: var(--panel); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px;
+}
+input[type=number] { width: 58px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 4px 10px; }
+.seg button.on { background: var(--focus); color: #fff; }
+button {
+  font: inherit; font-size: 14px; background: var(--btn); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 5px 11px; cursor: pointer;
+}
+button:hover:not(:disabled) { background: var(--btn-hover); }
+button:disabled { opacity: .4; cursor: default; }
+.hint { margin-top: 10px; font-size: 14px; color: var(--muted); }
+.hint b { color: var(--fg); font-weight: 600; }
+.warn-tag { color: var(--bad); font-size: 13px; font-weight: 600; }
+
+.layout { display: grid; grid-template-columns: 1fr 250px; gap: 14px; margin-top: 14px; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+.caption { min-height: 46px; font-size: 16px; }
+.caption .phase { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.alert { margin-top: 8px; padding: 7px 10px; border-radius: 7px; font-size: 14px; font-weight: 500; display: none; }
+.alert.show { display: block; }
+.alert.info { background: var(--info-bg); color: var(--info-fg); }
+.alert.warn { background: var(--warn-bg); color: var(--warn-fg); }
+.alert.ok { background: var(--ok-bg); color: var(--ok-fg); }
+.alert.bad { background: var(--bad-bg); color: var(--bad-fg); }
+
+.stage { position: relative; margin-top: 12px; }
+.bars { position: relative; height: clamp(150px, 30vh, 270px); }
+.bar {
+  position: absolute; bottom: 0; left: 0; border-radius: 4px 4px 0 0; background: var(--bar);
+  transition: transform var(--tr, .32s) ease, background-color .2s, opacity .2s;
+}
+.bar .lbl {
+  position: absolute; top: -19px; left: 50%; transform: translateX(-50%);
+  font-size: 12px; font-variant-numeric: tabular-nums; color: var(--fg); white-space: nowrap;
+}
+.bar .badge {
+  position: absolute; top: -37px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; font-weight: 700; padding: 0 4px; border-radius: 4px; color: #fff; white-space: nowrap;
+}
+.bar.dim { background: var(--bar-dim); }
+.bar.focus { background: var(--focus); }
+.bar.key { background: var(--focus); }
+.bar.less { background: var(--less); }
+.bar.geq { background: var(--geq); }
+.bar.less .badge { background: var(--less); }
+.bar.geq .badge { background: var(--geq); }
+.bar.ok { background: var(--ok); }
+.bar.bad { background: var(--bad); }
+.win, .ovl { position: absolute; top: -44px; bottom: -2px; pointer-events: none; transition: left .32s ease, width .32s ease; }
+.win { background: var(--win); border: 2px solid var(--win-line); border-radius: 6px; }
+.ovl { background: var(--ovl); border-left: 2px dashed var(--ovl-line); border-right: 2px dashed var(--ovl-line); }
+.fence { position: absolute; top: -44px; bottom: -2px; width: 0; border-left: 3px solid var(--bad); }
+.fence span {
+  position: absolute; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+  font-size: 12px; font-weight: 700; color: var(--bad);
+}
+.idx { position: relative; height: 18px; margin-top: 3px; }
+.idx span { position: absolute; font-size: 11px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+.row-label { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 10px 0 4px; }
+
+.buckets { position: relative; height: clamp(90px, 17vh, 150px); border-top: 1px solid var(--line); }
+.bucket { position: absolute; top: 0; bottom: 18px; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; }
+.bucket.hot { background: var(--win); border-radius: 4px; }
+.chip {
+  border-radius: 3px; background: var(--bar); color: #fff; font-size: 11px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.chip.new { background: var(--focus); }
+.bidx { position: absolute; bottom: 0; font-size: 11px; color: var(--muted); text-align: center; }
+
+.playbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.playbar .spacer { flex: 1; }
+.playbar .pos { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.playbar label { font-size: 13px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+
+.stats h2 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.stats dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 5px 10px; font-size: 14px; }
+.stats dt { color: var(--muted); }
+.stats dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stats hr { border: 0; border-top: 1px solid var(--line); margin: 10px 0; grid-column: 1 / -1; width: 100%; }
+.stats .note { font-size: 12px; color: var(--muted); margin-top: 10px; }
+.check { margin-top: 10px; font-size: 13px; font-weight: 600; }
+.check.ok { color: var(--ok); }
+.check.bad { color: var(--bad); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+.keys { margin-top: 12px; font-size: 12px; color: var(--muted); }
+kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; background: var(--btn); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Simulação do OSJ</h1>
+    <p>Ordenação por Sondagem e Janelas · Fase 1 (Sondagem) + Fase 2 (Sanfona) · reimplementação fiel de <code>python/osj.py</code></p>
+  </header>
+
+  <section class="panel controls" aria-label="Parâmetros">
+    <label>Cenário
+      <select id="scenario">
+        <option value="readme">Exemplo do README (§2.2)</option>
+        <option value="contra">Contraexemplo [3, 4, 1, 2]</option>
+        <option value="random">Aleatório</option>
+        <option value="reverse">Reverso</option>
+      </select>
+    </label>
+    <label id="nWrap">n <input id="n" type="range" min="4" max="200" value="20"> <input id="nNum" type="number" min="4" max="200" value="20"></label>
+    <label id="sWrap">s <input id="s" type="number" min="1"></label>
+    <label id="wWrap">w <input id="w" type="number" min="2"></label>
+    <label id="sabWrap"><input id="sabotage" type="checkbox"> Sabotar Fase 1 (s = 1)</label>
+    <span style="display:inline-flex;gap:8px;align-items:center;font-size:14px">Passo da janela
+      <span class="seg" role="group">
+        <button id="modeHalf" type="button">w/2</button>
+        <button id="modeFull" type="button">w</button>
+      </span>
+      <span id="modeWarn" class="warn-tag"></span>
+    </span>
+    <button id="reroll" type="button">Novo sorteio</button>
+    <span id="lockNote" style="flex-basis:100%;font-size:13px;color:var(--muted)"></span>
+  </section>
+  <div class="hint" id="hint"></div>
+
+  <div class="layout">
+    <section class="panel">
+      <div class="playbar">
+        <button id="bReset" type="button" title="Reiniciar">⏮ Reiniciar</button>
+        <button id="bPrev" type="button" title="Voltar (←)">◀ Voltar</button>
+        <button id="bNext" type="button" title="Próximo passo (→)">Próximo ▶</button>
+        <button id="bPlay" type="button" title="Play/Pause (espaço)">▶ Play</button>
+        <button id="bSkip" type="button" title="Pular para a próxima fase">⏭ Pular fase</button>
+        <span class="spacer"></span>
+        <label title="passos por segundo">Velocidade <input id="speed" type="range" min="0.2" max="10" step="0.1" value="1"> <input id="speedNum" type="number" min="0.1" max="50" step="0.1" value="1"> passos/s</label>
+        <span class="pos" id="pos"></span>
+      </div>
+      <div class="caption"><div class="phase" id="phaseLbl"></div><div id="caption"></div></div>
+      <div class="alert" id="alert"></div>
+
+      <div class="row-label" id="vecLbl">Vetor</div>
+      <div class="stage" style="margin-top:48px">
+        <div class="bars" id="bars"></div>
+        <div class="idx" id="idx"></div>
+      </div>
+
+      <div id="bucketWrap">
+        <div class="row-label">Baldes da Fase 1 (posição estimada)</div>
+        <div class="buckets" id="buckets"></div>
+      </div>
+
+      <div class="legend" id="legend"></div>
+
+    </section>
+
+    <aside class="panel stats">
+      <h2>Contadores</h2>
+      <dl>
+        <dt>Fase</dt><dd id="kPhase">—</dd>
+        <dt>Passada</dt><dd id="kPass">—</dd>
+        <dt>Comparações</dt><dd id="kComp">0</dd>
+        <dt>Movimentações</dt><dd id="kMoves">0</dd>
+        <dt>Trocas de vizinhos</dt><dd id="kShifts">0</dd>
+        <hr>
+        <dt>Inv(A) atual</dt><dd id="kInv">—</dd>
+        <dt>Inv(A₀)</dt><dd id="kInv0">—</dd>
+        <hr>
+        <dt>Total ao fim: comparações</dt><dd id="kTotComp">—</dd>
+        <dt>Total ao fim: passadas</dt><dd id="kTotPass">—</dd>
+      </dl>
+      <div class="check" id="check"></div>
+      <div class="note">
+        s = <span id="kS">—</span>, w = <span id="kW">—</span>, passo = <span id="kStep">—</span><br>
+        Inv(A) é grandeza <b>da análise</b>: exibida aqui por instrumentação, o algoritmo nunca a calcula.
+        Movimentações seguem a convenção de <code>classical.py</code>.
+      </div>
+      <div class="keys"><kbd>→</kbd> próximo · <kbd>←</kbd> voltar · <kbd>espaço</kbd> play/pause</div>
+    </aside>
+  </div>
+</main>
+
+<script>
+"use strict";
+
+// ===========================================================================
+// Motor: espelha python/osj.py (mesma ordem de operações, mesma contagem)
+// ===========================================================================
+
+function defaultS(n) { return n <= 1 ? 0 : Math.max(1, Math.round(Math.pow(n, 2 / 3))); }
+function defaultW(n) { return n <= 2 ? 2 : Math.max(2, Math.min(n, Math.round(Math.pow(n, 2 / 3)))); }
+
+function inversions(v) {
+  let t = 0;
+  for (let i = 0; i < v.length; i++) for (let j = i + 1; j < v.length; j++) if (v[i] > v[j]) t++;
+  return t;
+}
+
+// Posto final de cada posição, com desempate por índice (ordenação estável), como _final_ranks.
+function finalRanks(v) {
+  const order = v.map((x, i) => i).sort((a, b) => (v[a] - v[b]) || (a - b));
+  const r = new Array(v.length);
+  order.forEach((i, k) => { r[i] = k; });
+  return r;
+}
+function maxDisplacement(v) {
+  if (!v.length) return 0;
+  const r = finalRanks(v);
+  return Math.max(...v.map((x, i) => Math.abs(i - r[i])));
+}
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Teto de quadros animados por janela: acima disso a animacao ficaria longa demais.
+const MAX_FRAMES = 60;
+function subsample(xs, max) {
+  if (xs.length <= max) return xs;
+  const out = [];
+  for (let k = 1; k <= max; k++) out.push(xs[Math.round((k * xs.length) / max) - 1]);
+  return out;
+}
+
+const fmtList = (xs, max = 16) => "[" + (xs.length > max ? xs.slice(0, max).join(", ") + ", …" : xs.join(", ")) + "]";
+
+/**
+ * Executa o OSJ sobre cfg.values e devolve a sequência de passos da simulação.
+ * cfg: { values, s, w, phase1, witnesses (índices fixos ou null), rng, stepMode: 'half'|'full' }
+ */
+function buildTrace(cfg) {
+  const n = cfg.values.length;
+  const byId = cfg.values.map((v, id) => ({ id, v }));
+  let items = byId.slice();
+  const st = { comparisons: 0, moves: 0, shifts: 0, passes: 0 };
+  const steps = [];
+  const vals = () => items.map(x => x.v);
+  const snap = (extra) => {
+    steps.push(Object.assign({ arr: items.map(x => x.id), stats: Object.assign({}, st), inv: inversions(vals()) }, extra));
+  };
+
+  const inv0Input = inversions(cfg.values);
+  const phase1 = cfg.phase1 && cfg.s > 0;
+
+  snap({
+    phase: 0, kind: "start",
+    buckets: phase1 ? Array.from({ length: n }, () => []) : null,
+    caption: cfg.startCaption + ` Inv(A) = ${inv0Input}, deslocamento máximo = ${maxDisplacement(cfg.values)}.`,
+  });
+
+  // ---- Fase 1: Sondagem (sondagem independente, _phase1_independent) ----
+  if (phase1) {
+    const s = cfg.s;
+    const ranks = cfg.values.map(x => cfg.values.filter(y => y < x).length); // posto r_i = # estritamente menores
+    const buckets = Array.from({ length: n }, () => []);
+    for (let i = 0; i < n; i++) {
+      const ai = items[i];
+      let c = 0;
+      const wit = [];
+      for (let k = 0; k < s; k++) {
+        const j = cfg.witnesses ? cfg.witnesses[i][k] : Math.floor(cfg.rng() * n);
+        st.comparisons += 1;
+        const less = items[j].v < ai.v;
+        if (less) c += 1;
+        wit.push({ j, less });
+      }
+      const p = Math.floor((c * (n - 1)) / s);
+      buckets[p].push(ai.id);
+      const r = ranks[i];
+      const bigMiss = Math.abs(p - r) >= Math.max(4, Math.floor(n / 3));
+      snap({
+        phase: 1, kind: "probe", i, focus: ai.id, wit, c, s, p,
+        buckets: buckets.map(b => b.slice()),
+        caption: `<b>${ai.v}</b> consulta ${s} testemunha${s > 1 ? "s" : ""} ${fmtList(wit.map(x => items[x.j].v))}: ` +
+          `<b>${c} de ${s}</b> menores → balde ⌊${c}/${s} · ${n - 1}⌋ = <b>${p}</b> <span style="color:var(--muted)">(posto real: ${r})</span>`,
+        alert: bigMiss ? { cls: "warn", text: `Estimativa ruim: ${ai.v} deveria ir para perto da posição ${r}, mas foi para o balde ${p}. A Fase 1 pode errar — a Fase 2 conserta.` } : null,
+      });
+    }
+    const invBefore = inversions(vals()), dBefore = maxDisplacement(vals());
+    items = [].concat(...buckets).map(id => byId[id]);
+    st.moves += n;
+    snap({
+      phase: 1, kind: "concat", buckets: buckets.map(b => b.slice()),
+      caption: `Baldes concatenados em ordem → vetor entregue à Fase 2. Inv(A): <b>${invBefore} → ${inversions(vals())}</b> · deslocamento máximo: <b>${dBefore} → ${maxDisplacement(vals())}</b>.`,
+      alert: { cls: "info", text: "Quase ordenado, não ordenado. A partir daqui só a Sanfona decide a corretude." },
+    });
+  }
+  const inv0 = inversions(vals());
+
+  // ---- Fase 2: Sanfona (_sweep / _insertion_window / _phase2) ----
+  const w = Math.max(2, Math.min(cfg.w, n));
+  const step = cfg.stepMode === "full" ? w : Math.max(1, Math.floor(w / 2));
+  const starts = [];
+  for (let p = 0; p <= n - w; p += step) starts.push(p);
+  if (starts[starts.length - 1] !== n - w) starts.push(n - w);
+
+  let pass = 0;
+  while (true) {
+    pass += 1;
+    let moved = false;
+    for (let wi = 0; wi < starts.length; wi++) {
+      const lo = starts[wi], hi = lo + w;
+      const before = items.map(x => x.id);
+      const invB = inversions(vals());
+      let shiftFrames = [];                // um quadro por troca de vizinhos
+      const keyFrames = [];                // um quadro por chave inserida (fallback)
+      let shiftsHere = 0, wmoved = false;
+      for (let i = lo + 1; i < hi; i++) {
+        const key = items[i];
+        st.moves += 1;
+        let j = i - 1;
+        while (j >= lo) {
+          st.comparisons += 1;
+          if (items[j].v > key.v) {
+            items[j + 1] = items[j];
+            st.moves += 1;
+            st.shifts += 1;
+            shiftsHere += 1;
+            j -= 1;
+            wmoved = true;
+            if (shiftFrames && shiftFrames.length < MAX_FRAMES) {
+              const f = items.map(x => x.id);
+              f[j + 1] = key.id;             // visualmente: a chave trocou de lugar com o vizinho
+              shiftFrames.push({ arr: f, key: key.id });
+            } else {
+              shiftFrames = null;            // excedeu: a janela anima por chave, nao por troca
+            }
+          } else {
+            break;
+          }
+        }
+        const keyMoved = j + 1 !== i;
+        items[j + 1] = key;
+        st.moves += 1;
+        if (keyMoved) keyFrames.push({ arr: items.map(x => x.id), key: key.id });
+      }
+      const frames = shiftFrames || subsample(keyFrames, MAX_FRAMES);
+      if (wmoved) moved = true;
+      const invA = inversions(vals());
+      const prev = wi > 0 ? starts[wi - 1] : null;
+      snap({
+        phase: 2, kind: "window", pass, lo, w, prev, before, frames,
+        caption: `Passada ${pass} · janela [${lo}:${hi}] ` +
+          (shiftsHere
+            ? `· <b>${shiftsHere}</b> troca${shiftsHere > 1 ? "s" : ""} de vizinhos · Inv <b>${invB} → ${invA}</b>`
+            : `· já ordenada, nada se move`),
+      });
+    }
+    st.passes += 1;
+    snap({
+      phase: 2, kind: "passEnd", pass, moved,
+      caption: moved
+        ? `Fim da passada ${pass}: houve movimentação → nova passada.`
+        : `Fim da passada ${pass}: nenhuma janela moveu nada.`,
+      alert: moved ? null : { cls: "info", text: "Passada inteira sem movimentação → ponto fixo → o laço encerra. Esta passada não muda nada, mas é obrigatória: é ela que constata o fim." },
+    });
+    if (!moved || pass > 5000) break;
+  }
+
+  // ---- Resultado ----
+  const out = vals();
+  const sorted = out.every((x, k) => k === 0 || out[k - 1] <= x);
+  const covered = (k) => starts.some(p => p <= k && p + w - 1 >= k + 1);
+  const fences = [];
+  for (let k = 0; k + 1 < n; k++) if (!covered(k)) fences.push({ k, bad: out[k] > out[k + 1] });
+  const badPairs = fences.filter(f => f.bad).map(f => `(${out[f.k]}, ${out[f.k + 1]})`);
+  const invEnd = inversions(out);
+  snap({
+    phase: 3, kind: "final", sorted, fences,
+    caption: sorted
+      ? `Saída: ${fmtList(out, 40)}`
+      : `Saída: ${fmtList(out, 40)} — <b>desordenada</b>.`,
+    alert: sorted
+      ? { cls: "ok", text: `Saída ordenada. ${st.comparisons} comparações, ${st.moves} movimentações, ${st.shifts} trocas de vizinhos, ${st.passes} passadas.` }
+      : { cls: "bad", text: `Ponto fixo espúrio: todas as janelas estão ordenadas, nada se move, o laço para — e o vetor está errado. O${badPairs.length > 1 ? "s pares" : " par"} ${badPairs.join(", ")} fica${badPairs.length > 1 ? "m" : ""} na fronteira entre janelas e nunca é comparado. Troque o passo para w/2.` },
+  });
+
+  return {
+    n, steps, byId, s: phase1 ? cfg.s : 0, w, step, starts, phase1, inv0, invEnd, sorted,
+    totals: Object.assign({}, st),
+  };
+}
+
+// ===========================================================================
+// Cenários
+// ===========================================================================
+
+// Exemplo do README §2.2: índices das testemunhas que random.Random(2024) sorteia
+// em exemplo_didatico.py, para reproduzir exatamente 106 comparações e 16 trocas.
+const README = {
+  values: [42, 7, 19, 88, 3, 61, 25, 54, 12, 77, 33, 96],
+  s: 4, w: 4,
+  witnesses: [[7, 2, 11, 9], [4, 3, 11, 6], [11, 4, 8, 3], [10, 11, 7, 5], [6, 8, 11, 9], [3, 4, 8, 11],
+              [5, 8, 1, 11], [3, 11, 11, 7], [11, 10, 2, 8], [3, 6, 0, 5], [10, 6, 7, 1], [11, 11, 2, 5]],
+};
+
+const HINTS = {
+  readme: "<b>O que observar:</b> o <b>54</b> sorteia [88, 96, 96, 54], não acha nenhuma testemunha menor e vai para o balde 0 — a Fase 1 erra feio, e a saída ainda sai certa. No fim, <b>trocas de vizinhos = Inv(A₀) = 16</b>.",
+  contra: "<b>O que observar:</b> com passo <b>w</b>, as janelas [0:2] e [2:4] não se tocam; o par (4, 1) nunca é comparado e o algoritmo para errado. Troque para <b>w/2</b> e rode de novo.",
+  random: "<b>O que observar:</b> ligue <b>Sabotar Fase 1</b> — a saída continua ordenada, só fica mais cara. Compare o \"total ao fim\" com e sem sabotagem.",
+  reverse: "<b>O que observar:</b> o pior caso clássico do Insertion e do Bubble. A Sondagem ignora a ordem da entrada; com sabotagem, a Sanfona recebe muita desordem e ainda termina, em mais passadas.",
+};
+
+const state = { scenario: "readme", n: 20, s: null, w: null, wFixed: null, sabotage: false, stepMode: "half", seed: 7 };
+
+function sampleDistinct(rng, n, lo, hi) {
+  const pool = [];
+  for (let v = lo; v <= hi; v++) pool.push(v);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, n);
+}
+
+function makeConfig() {
+  const sc = state.scenario;
+  if (sc === "readme") {
+    const w = state.wFixed ?? README.w;
+    return { values: README.values.slice(), s: README.s, w, phase1: true, witnesses: README.witnesses,
+      rng: null, stepMode: state.stepMode,
+      startCaption: `Entrada do exemplo do README: 12 elementos, s = 4, w = ${w}` +
+        (w !== README.w ? " (o README usa w = 4; os totais vão diferir dos do relatório)." : ".") };
+  }
+  if (sc === "contra") {
+    const w = state.wFixed ?? 2;
+    return { values: [3, 4, 1, 2], s: 0, w, phase1: false, witnesses: null, rng: null, stepMode: state.stepMode,
+      startCaption: `Contraexemplo, sem Fase 1: a Sanfona recebe [3, 4, 1, 2] direto, com w = ${w}.` };
+  }
+  const rng = mulberry32(state.seed * 7919 + state.n);
+  let values = state.n <= 80 ? sampleDistinct(rng, state.n, 10, 99) : sampleDistinct(rng, state.n, 100, 999);
+  if (sc === "reverse") values.sort((a, b) => b - a);
+  const s = state.sabotage ? 1 : state.s;
+  return { values, s, w: state.w, phase1: true, witnesses: null, rng, stepMode: state.stepMode,
+    startCaption: (sc === "reverse" ? "Vetor estritamente reverso" : "Vetor aleatório") +
+      ` com n = ${state.n}, s = ${s}${state.sabotage ? " (sabotado)" : ""}, w = ${state.w}.` };
+}
+
+// ===========================================================================
+// Interface
+// ===========================================================================
+
+const $ = (id) => document.getElementById(id);
+let trace = null, idx = 0, playing = false, timers = [], animating = false, viewArr = null, viewKey = null;
+let barEls = [];
+
+// Não reescreve o campo em que o usuário está digitando (senão "150" vira "4" no primeiro dígito).
+function setField(el, v) { if (el !== document.activeElement || el.type !== "number") el.value = v; }
+
+function syncControls() {
+  const sc = state.scenario;
+  const free = sc === "random" || sc === "reverse";
+  $("scenario").value = sc;
+  const shownN = sc === "readme" ? README.values.length : sc === "contra" ? 4 : state.n;
+  $("n").value = shownN; setField($("nNum"), shownN);
+  $("nWrap").classList.toggle("dim", !free); $("n").disabled = !free; $("nNum").disabled = !free;
+  const cfgS = sc === "readme" ? README.s : sc === "contra" ? "—" : (state.sabotage ? 1 : state.s);
+  const cfgW = sc === "readme" ? (state.wFixed ?? README.w) : sc === "contra" ? (state.wFixed ?? 2) : state.w;
+  setField($("s"), cfgS === "—" ? "" : cfgS); $("s").max = state.n;
+  setField($("w"), cfgW); $("w").max = shownN;
+  $("s").disabled = !free || state.sabotage; $("sWrap").classList.toggle("dim", !free || state.sabotage);
+  $("w").disabled = false; $("wWrap").classList.remove("dim");
+  $("lockNote").textContent = sc === "readme"
+    ? "n e s fixos neste cenário (são as testemunhas do README) — para mudá-los, escolha Aleatório ou Reverso."
+    : sc === "contra"
+      ? "n fixo em 4 e sem Fase 1 neste cenário — para mudar n e s, escolha Aleatório ou Reverso."
+      : "";
+  $("sabotage").checked = state.sabotage; $("sabotage").disabled = !free; $("sabWrap").classList.toggle("dim", !free);
+  $("reroll").disabled = !free;
+  $("modeHalf").classList.toggle("on", state.stepMode === "half");
+  $("modeFull").classList.toggle("on", state.stepMode === "full");
+  $("modeWarn").textContent = state.stepMode === "full" ? "variante incorreta — só para demonstração" : "";
+  $("hint").innerHTML = HINTS[sc];
+}
+
+function rebuild() {
+  stop();
+  syncControls();
+  trace = buildTrace(makeConfig());
+  setupStage();
+  show(0, false);
+}
+
+function setupStage() {
+  const bars = $("bars");
+  bars.innerHTML = "";
+  const maxV = Math.max(...trace.byId.map(x => x.v));
+  barEls = trace.byId.map(x => {
+    const el = document.createElement("div");
+    el.className = "bar";
+    el.dataset.h = String(x.v / maxV);
+    el.innerHTML = `<span class="lbl">${x.v}</span><span class="badge"></span>`;
+    bars.appendChild(el);
+    return el;
+  });
+  const win = document.createElement("div"); win.className = "win"; win.id = "winBox"; bars.appendChild(win);
+  const ovl = document.createElement("div"); ovl.className = "ovl"; ovl.id = "ovlBox"; bars.appendChild(ovl);
+  $("idx").innerHTML = trace.byId.map((_, k) => `<span data-k="${k}">${k}</span>`).join("");
+  $("kS").textContent = trace.phase1 ? trace.s : "— (sem Fase 1)";
+  $("kW").textContent = trace.w;
+  $("kStep").textContent = trace.step + (state.stepMode === "full" ? " (= w)" : " (= ⌊w/2⌋)");
+  $("kTotComp").textContent = trace.totals.comparisons.toLocaleString("pt-BR");
+  $("kTotPass").textContent = trace.totals.passes;
+}
+
+function render() {
+  const step = trace.steps[idx];
+  const n = trace.n;
+  const arr = viewArr || step.arr;
+  const width = $("bars").clientWidth;
+  const slot = width / n;
+  const H = $("bars").clientHeight - 4;
+  const bw = Math.max(1, slot * (slot < 6 ? 0.9 : 0.76)), off = (slot - bw) / 2;
+  const digits = String(Math.max(...trace.byId.map(x => x.v))).length;
+  const showLbl = slot >= digits * 6 + 4;
+
+  // classes por elemento
+  const cls = {}, badge = {};
+  if (step.kind === "probe") {
+    const counts = {};
+    step.wit.forEach(x => {
+      const id = step.arr[x.j];
+      counts[id] = (counts[id] || 0) + 1;
+      cls[id] = x.less ? "less" : "geq";
+    });
+    Object.keys(counts).forEach(id => { badge[id] = counts[id] > 1 ? "×" + counts[id] : ""; });
+    for (let k = 0; k < step.i; k++) if (!cls[step.arr[k]]) cls[step.arr[k]] = "dim";
+    cls[step.focus] = "focus";
+  } else if (step.kind === "window") {
+    arr.forEach((id, pos) => { if (pos < step.lo || pos >= step.lo + step.w) cls[id] = "dim"; });
+    if (viewKey != null) cls[viewKey] = "key";
+  } else if (step.kind === "final") {
+    if (step.sorted) arr.forEach(id => { cls[id] = "ok"; });
+    else step.fences.filter(f => f.bad).forEach(f => { cls[arr[f.k]] = "bad"; cls[arr[f.k + 1]] = "bad"; });
+  } else if (step.kind === "passEnd" && !step.moved) {
+    arr.forEach(id => { cls[id] = "ok"; });
+  }
+
+  arr.forEach((id, pos) => {
+    const el = barEls[id];
+    el.style.width = bw + "px";
+    el.style.height = Math.max(6, parseFloat(el.dataset.h) * (H - 42)) + "px";
+    el.style.transform = `translateX(${pos * slot + off}px)`;
+    el.className = "bar" + (cls[id] ? " " + cls[id] : "");
+    const b = el.querySelector(".badge");
+    b.textContent = badge[id] || "";
+    b.style.display = badge[id] ? "" : "none";
+    const lbl = el.querySelector(".lbl");
+    lbl.style.display = showLbl ? "" : "none";
+    lbl.style.fontSize = slot < 22 ? "10px" : "12px";
+  });
+
+  // janela e sobreposição
+  const win = $("winBox"), ovl = $("ovlBox");
+  if (step.kind === "window") {
+    win.style.display = ""; win.style.left = step.lo * slot + "px"; win.style.width = step.w * slot + "px";
+    const ovEnd = step.prev != null ? step.prev + step.w : null;
+    if (ovEnd != null && ovEnd > step.lo) {
+      ovl.style.display = ""; ovl.style.left = step.lo * slot + "px"; ovl.style.width = (ovEnd - step.lo) * slot + "px";
+    } else ovl.style.display = "none";
+  } else { win.style.display = "none"; ovl.style.display = "none"; }
+
+  // fronteiras nunca comparadas (ponto fixo espúrio)
+  $("bars").querySelectorAll(".fence").forEach(f => f.remove());
+  if (step.kind === "final" && !step.sorted) {
+    step.fences.filter(f => f.bad).forEach(f => {
+      const d = document.createElement("div");
+      d.className = "fence"; d.style.left = (f.k + 1) * slot + "px";
+      d.innerHTML = "<span>nunca comparado</span>";
+      $("bars").appendChild(d);
+    });
+  }
+
+  $("idx").querySelectorAll("span").forEach((sp, k) => {
+    const every = Math.max(1, Math.ceil(22 / slot));
+    const vis = k % every === 0;
+    sp.style.display = vis ? "" : "none";
+    sp.style.left = (every > 1 ? k * slot + slot / 2 - 11 : k * slot) + "px";
+    sp.style.width = (every > 1 ? 22 : slot) + "px";
+  });
+
+  renderBuckets(step, slot);
+
+  // textos
+  const phaseNames = ["Início", "Fase 1 — Sondagem", "Fase 2 — Sanfona", "Resultado"];
+  $("phaseLbl").textContent = phaseNames[step.phase];
+  $("caption").innerHTML = step.caption;
+  const al = $("alert");
+  if (step.alert) { al.className = "alert show " + step.alert.cls; al.textContent = step.alert.text; }
+  else al.className = "alert";
+  $("vecLbl").textContent = step.phase <= 1 && step.kind !== "concat" && trace.phase1
+    ? "Vetor de entrada (a Fase 1 lê daqui)" : "Vetor";
+
+  // contadores (durante a animação da janela, mostra o estado anterior a ela)
+  const shown = animating && idx > 0 ? trace.steps[idx - 1] : step;
+  $("kPhase").textContent = ["—", "1", "2", "fim"][step.phase];
+  $("kPass").textContent = step.pass != null ? step.pass : (step.phase === 3 ? trace.totals.passes : "—");
+  $("kComp").textContent = shown.stats.comparisons.toLocaleString("pt-BR");
+  $("kMoves").textContent = shown.stats.moves.toLocaleString("pt-BR");
+  $("kShifts").textContent = shown.stats.shifts.toLocaleString("pt-BR");
+  $("kInv").textContent = shown.inv;
+  const inv0Known = !trace.phase1 || step.phase >= 2 || step.kind === "concat";
+  $("kInv0").textContent = inv0Known ? trace.inv0 : "—";
+  const chk = $("check");
+  if (step.phase === 3) {
+    const t = trace.totals;
+    if (trace.sorted) { chk.className = "check ok"; chk.textContent = `✓ trocas de vizinhos (${t.shifts}) = Inv(A₀) (${trace.inv0})`; }
+    else { chk.className = "check bad"; chk.textContent = `✗ parou com Inv = ${trace.invEnd} (trocas ${t.shifts} = Inv(A₀) ${trace.inv0} − ${trace.invEnd})`; }
+  } else { chk.className = "check"; chk.textContent = ""; }
+
+  renderLegend(step);
+  $("pos").textContent = `passo ${idx + 1} / ${trace.steps.length}`;
+  $("bPrev").disabled = idx === 0;
+  $("bNext").disabled = idx === trace.steps.length - 1 && !animating;
+  $("bSkip").disabled = idx === trace.steps.length - 1;
+  $("bPlay").textContent = playing ? "⏸ Pausar" : "▶ Play";
+}
+
+function renderBuckets(step, slot) {
+  const box = $("buckets");
+  $("bucketWrap").style.display = trace.phase1 && step.phase <= 1 ? "" : "none";
+  if (!trace.phase1) return;
+  const bk = step.buckets || (step.phase >= 2 ? null : []);
+  if (!bk) { box.innerHTML = `<div style="padding:10px 0;color:var(--muted);font-size:13px">Fase 1 concluída — os baldes viraram o vetor acima.</div>`; return; }
+  const maxCount = Math.max(1, ...bk.map(b => b.length));
+  const avail = box.clientHeight - 20;
+  const chipH = Math.min(18, (avail - maxCount * 2) / maxCount);
+  const asChips = chipH >= 5 && slot >= 8;
+  const digits = String(Math.max(...trace.byId.map(x => x.v))).length;
+  const every = Math.max(1, Math.ceil(22 / slot));
+  let html = "";
+  for (let b = 0; b < trace.n; b++) {
+    const ids = bk[b] || [];
+    const hot = step.kind === "probe" && step.p === b;
+    html += `<div class="bucket${hot ? " hot" : ""}" style="left:${b * slot}px;width:${slot}px;padding:0 ${slot * 0.08}px">`;
+    if (asChips) {
+      for (let k = ids.length - 1; k >= 0; k--) {
+        const id = ids[k];
+        const isNew = step.kind === "probe" && id === step.focus;
+        const txt = chipH >= 11 && slot >= digits * 6 + 4 ? trace.byId[id].v : "";
+        html += `<div class="chip${isNew ? " new" : ""}" style="height:${chipH}px">${txt}</div>`;
+      }
+    } else if (ids.length) {
+      // muitos elementos no mesmo balde: uma coluna proporcional a contagem
+      const h = Math.max(2, (ids.length / maxCount) * (avail - 14));
+      html += `<div class="chip${hot ? " new" : ""}" style="height:${h}px;position:relative;overflow:visible">` +
+        (ids.length >= 2 ? `<span style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--muted)">${ids.length}</span>` : "") + `</div>`;
+    }
+    html += `</div>`;
+    if (b % every === 0) html += `<div class="bidx" style="left:${every > 1 ? b * slot + slot / 2 - 11 : b * slot}px;width:${every > 1 ? 22 : slot}px">${b}</div>`;
+  }
+  box.innerHTML = html;
+}
+
+function renderLegend(step) {
+  const item = (c, t) => `<span><i style="background:var(${c})"></i>${t}</span>`;
+  let h = "";
+  if (step.phase <= 1) {
+    h = item("--focus", "elemento que está sondando") + item("--less", "testemunha menor (conta)") +
+        item("--geq", "testemunha não menor") + item("--bar-dim", "já sondado");
+  } else if (step.phase === 2) {
+    h = `<span><i style="background:var(--win);border:2px solid var(--win-line)"></i>janela atual (largura w)</span>` +
+        `<span><i style="background:var(--ovl);border:1px dashed var(--ovl-line)"></i>sobreposição com a janela anterior</span>` +
+        item("--focus", "chave sendo inserida") + item("--bar-dim", "fora da janela");
+  } else {
+    h = trace.sorted ? item("--ok", "vetor ordenado") : item("--bad", "par vizinho fora de ordem, nunca comparado");
+  }
+  $("legend").innerHTML = h;
+}
+
+// ---- Andamento ----------------------------------------------------------------
+
+let speed = 1;                 // passos por segundo
+let stepShownAt = 0;           // instante em que o passo atual começou a ser exibido
+const speedMs = () => 1000 / speed;
+const setTransition = (sec) => document.documentElement.style.setProperty("--tr", sec.toFixed(3) + "s");
+
+/** Ajusta a velocidade; keepField evita reescrever o campo enquanto o usuário digita. */
+function applySpeed(v, keepField) {
+  speed = Math.max(0.1, Math.min(50, Number(v) || speed));
+  if (!keepField) $("speedNum").value = speed;
+  $("speed").value = Math.min(10, Math.max(0.2, speed));
+  setTransition(Math.min(0.32, speedMs() / 1000 * 0.5));
+}
+function clearTimers() { timers.forEach(clearTimeout); timers = []; animating = false; }
+
+function show(i, animate) {
+  clearTimers();
+  idx = Math.max(0, Math.min(trace.steps.length - 1, i));
+  stepShownAt = performance.now();
+  const step = trace.steps[idx];
+  if (animate && step.kind === "window" && step.frames.length && speedMs() >= 120) {
+    // A animação da janela cabe dentro do período do passo: o Play mantém os passos/s.
+    animating = true;
+    viewArr = step.before; viewKey = null;
+    const d = Math.max(15, Math.min(360, (speedMs() * 0.7) / (step.frames.length + 1)));
+    setTransition(Math.min(0.32, (d * 0.9) / 1000));
+    render();
+    step.frames.forEach((f, k) => timers.push(setTimeout(() => { viewArr = f.arr; viewKey = f.key; render(); }, d * (k + 1))));
+    timers.push(setTimeout(() => { finishAnim(); }, d * (step.frames.length + 1)));
+  } else {
+    viewArr = null; viewKey = null;
+    render();
+    if (playing) scheduleNext();
+  }
+}
+function finishAnim() {
+  clearTimers();
+  viewArr = null; viewKey = null;
+  setTransition(Math.min(0.32, speedMs() / 1000 * 0.5));
+  render();
+  if (playing) scheduleNext();
+}
+function scheduleNext() {
+  const wait = Math.max(0, speedMs() - (performance.now() - stepShownAt));
+  timers.push(setTimeout(() => {
+    if (idx < trace.steps.length - 1) show(idx + 1, true); else stop();
+  }, wait));
+}
+function next() {
+  if (animating) { finishAnim(); return; }
+  if (idx < trace.steps.length - 1) show(idx + 1, true);
+}
+function prev() { if (playing) stop(); show(idx - 1, false); }
+function play() {
+  if (idx === trace.steps.length - 1) show(0, false);
+  playing = true;
+  if (!animating) { clearTimers(); scheduleNext(); }
+  render();
+}
+function stop() { playing = false; clearTimers(); viewArr = null; viewKey = null; if (trace) render(); }
+function skipPhase() {
+  const cur = trace.steps[idx].phase;
+  let k = idx + 1;
+  while (k < trace.steps.length - 1 && trace.steps[k].phase <= cur) k++;
+  if (playing) stop();
+  show(k, false);
+}
+
+// ---- Eventos ------------------------------------------------------------------
+
+// Os controles de formulário mantêm o foco: setas, spinner e roda do mouse continuam
+// ajustando o mesmo campo. As teclas da simulação só valem fora deles (ver keydown).
+$("scenario").addEventListener("change", (e) => {
+  state.scenario = e.target.value;
+  state.stepMode = state.scenario === "contra" ? "full" : "half";
+  state.sabotage = false;
+  state.wFixed = null;
+  if (state.scenario === "random" || state.scenario === "reverse") {
+    state.s = defaultS(state.n); state.w = defaultW(state.n);
+  }
+  rebuild();
+});
+
+/**
+ * Campo numérico inteiro: aplica sozinho ao digitar (após uma pausa curta, só se o valor
+ * já for válido) e, no Enter ou ao sair, corrige para dentro de [min, max].
+ */
+function intField(el, lo, hi, get, set) {
+  let pending = null;
+  const apply = (v) => { if (v !== get()) { set(v); rebuild(); } };
+  el.addEventListener("input", () => {
+    clearTimeout(pending);
+    const v = Number(el.value);
+    if (el.value === "" || !Number.isInteger(v) || v < lo() || v > hi()) return;
+    pending = setTimeout(() => apply(v), 350);
+  });
+  el.addEventListener("change", () => {
+    clearTimeout(pending);
+    const v = Math.max(lo(), Math.min(hi(), Math.round(Number(el.value)) || get()));
+    el.value = v;
+    apply(v);
+  });
+}
+
+function setN(v) {
+  state.n = v;
+  state.s = defaultS(state.n); state.w = defaultW(state.n);
+}
+intField($("nNum"), () => 4, () => 200, () => state.n, setN);
+
+// A barra de n mostra o valor na hora, mas só reconstrói o traço quando o arrasto
+// pausa: com n = 200, cada reconstrução custa ~100 ms.
+let nDrag = null;
+$("n").addEventListener("input", (e) => {
+  $("nNum").value = e.target.value;
+  clearTimeout(nDrag);
+  nDrag = setTimeout(() => { setN(Number(e.target.value)); rebuild(); }, 120);
+});
+$("n").addEventListener("change", (e) => {
+  clearTimeout(nDrag);
+  if (Number(e.target.value) !== state.n) { setN(Number(e.target.value)); rebuild(); }
+});
+
+intField($("s"), () => 1, () => state.n, () => state.s, (v) => { state.s = v; });
+
+const fixedW = () => state.scenario === "readme" || state.scenario === "contra";
+intField($("w"), () => 2,
+  () => state.scenario === "readme" ? README.values.length : state.scenario === "contra" ? 4 : state.n,
+  () => fixedW() ? (state.wFixed ?? (state.scenario === "readme" ? README.w : 2)) : state.w,
+  (v) => { if (fixedW()) state.wFixed = v; else state.w = v; });
+
+$("sabotage").addEventListener("change", (e) => { state.sabotage = e.target.checked; rebuild(); });
+$("modeHalf").addEventListener("click", (e) => { state.stepMode = "half"; e.currentTarget.blur(); rebuild(); });
+$("modeFull").addEventListener("click", (e) => { state.stepMode = "full"; e.currentTarget.blur(); rebuild(); });
+$("reroll").addEventListener("click", (e) => { state.seed += 1; e.currentTarget.blur(); rebuild(); });
+
+$("bReset").addEventListener("click", (e) => { stop(); show(0, false); e.currentTarget.blur(); });
+$("bPrev").addEventListener("click", (e) => { prev(); e.currentTarget.blur(); });
+$("bNext").addEventListener("click", (e) => { next(); e.currentTarget.blur(); });
+$("bPlay").addEventListener("click", (e) => { playing ? stop() : play(); e.currentTarget.blur(); });
+$("bSkip").addEventListener("click", (e) => { skipPhase(); e.currentTarget.blur(); });
+$("speed").addEventListener("input", (e) => applySpeed(e.target.value));
+$("speedNum").addEventListener("input", (e) => {
+  const v = Number(e.target.value);
+  if (e.target.value !== "" && v >= 0.1 && v <= 50) applySpeed(v, true);
+});
+$("speedNum").addEventListener("change", (e) => applySpeed(e.target.value));
+
+document.addEventListener("keydown", (e) => {
+  const t = e.target;
+  // Campos, barras e o select usam setas/espaço para si; o checkbox não.
+  if (t && ((t.tagName === "INPUT" && t.type !== "checkbox") || t.tagName === "SELECT" || t.tagName === "TEXTAREA")) return;
+  if (e.key === "ArrowRight") { e.preventDefault(); next(); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
+  else if (e.key === " ") { e.preventDefault(); playing ? stop() : play(); }
+});
+window.addEventListener("resize", () => { if (trace) render(); });
+
+state.s = defaultS(state.n); state.w = defaultW(state.n);
+applySpeed(1);
+rebuild();
+</script>
+</body>
+</html>
